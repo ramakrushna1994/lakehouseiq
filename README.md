@@ -6,7 +6,7 @@ LakehouseIQ turns plain-English business questions into Spark SQL over **Unity C
 "revenue" or "headcount" means exactly one thing everywhere. Every query passes **code-verified guardrails**
 (a character-level SQL scanner, not prompt politeness), is scored by an **independent judge model** from a
 different model family than the generator, and the whole system is measured by an **eval harness benchmarked
-against Databricks Genie** on the same questions and the same data.
+against Databricks Genie** on the same questions and the same data (see [Benchmark](#benchmark-vs-databricks-genie)).
 
 Built for Databricks Free Edition: serverless compute only, one SQL warehouse, Foundation Model APIs.
 
@@ -85,21 +85,54 @@ Ten questions is a small sample, and choosing a model on held-out v1 makes that 
 (`eval/holdout_v2.yaml`, frozen before any further changes) is the set to quote. Re-run any pairing from the
 **Actions > eval** workflow.
 
-## Evaluate against Genie
+## Benchmark vs Databricks Genie
 
-`eval/questions.yaml` holds 30 questions (10 per domain) with reference SQL.
+Same questions, same data, same SQL warehouse, same reference answers. Genie was a space with the tables and views
+only (no instructions, sample questions or example SQL). Measured on 24 Oct 2026, three runs, generator
+`databricks-gpt-oss-120b`, judge `databricks-meta-llama-3-3-70b-instruct`.
 
-1. Create a Genie space manually (Genie spaces are not part of the bundle): in the workspace, **Genie > New**,
-   add the tables and metric views under `sales`, `hr` and `finance`, and select the same SQL warehouse.
-2. Copy the space id from its URL and pass it: `databricks bundle run lakehouseiq_eval -t dev -p free_edition`
-   after deploying with `--var genie_space_id=<id>`, or run locally with `GENIE_SPACE_ID` set.
-3. Results land in `<catalog>.app.eval_results` and in an MLflow run (`exec_accuracy_assistant`,
-   `exec_accuracy_genie`, `blocked_rate`, `repair_rate`, `p50_latency_ms`).
+**Held-out v2** — 30 questions frozen before any tuning (`eval/holdout_v2.yaml`, hash-pinned by a test):
 
-A question counts as correct when the **result set** matches the reference result (column names ignored,
-numbers compared with tolerance, extra columns allowed, row order checked only when the question demands it).
-Genie's SQL is validated by the same guardrails and run on the same warehouse. Re-running with the same `run_id`
-resumes, skipping questions already stored.
+| Per run (out of 30) | LakehouseIQ | Genie |
+| --- | --- | --- |
+| Correct | 27 · 26 · 24 — **mean 85.6%** | 23 · 24 · 23 — **mean 77.8%** |
+| Wrong answer returned as if correct | 1 · 2 · 3 — **mean 6.7%** | 7 · 6 · 7 — **mean 22.2%** |
+| Failed visibly (error shown, no answer) | 2 · 2 · 3 | 0 · 0 · 0 |
+| p50 latency | 6.5 · 5.2 · 5.1 s — **~5.6 s** | 18.7 · 18.4 · 18.9 s — **~18.7 s** |
+
+What the numbers support:
+
+* **Fewer silent errors.** Genie never declined to answer; about one answer in five was wrong. LakehouseIQ returned
+  a wrong answer about one time in fifteen, and its other failures were visible errors rather than plausible
+  numbers.
+* **About 3.3x faster** at the median, consistently across every split and run.
+* **A modest accuracy lead, not a decisive one.** The runs overlap (LakehouseIQ's worst run equals Genie's best),
+  and 30 questions is a small sample. LakehouseIQ also varies more run to run (24-27 vs 23-24).
+
+Other splits, for completeness: on held-out v1 (10 questions, used once to choose the model) both systems averaged
+8/10. On the curated set LakehouseIQ scored 29/30 every run, but that set was used to tune prompts, so it is not a
+fair comparison. Both systems failed the same question on every run: month-over-month growth across a year boundary.
+
+**A fairness bug we found and fixed.** In these runs Genie resolved "last N months" against the calendar date while
+LakehouseIQ's prompt fixes "today" at the data's as-of date, so three curated questions failed for Genie on every run
+for reasons unrelated to answer quality. Held-out v2 contains no relative dates, so its results are unaffected. The
+harness now gives Genie the same as-of date and reports Genie call failures separately from wrong answers.
+
+### How a question is scored
+
+A question counts as correct when the **result set** matches the reference result: column names ignored, numbers
+compared after rounding, extra columns allowed, row order checked only when the question asks for an order,
+`'2026-01'` treated as the same month as `2026-01-01`. Genie's SQL passes the same guardrails and runs on the same
+warehouse. Reference SQL for both held-out sets was executed against the seeded data before freezing; none returns
+an empty answer or has a tie at a `LIMIT`.
+
+### Reproduce
+
+1. Create a Genie space (**Genie > New**) over the tables and views in `sales`, `hr` and `finance` and the same
+   SQL warehouse; copy the space id from its URL.
+2. **Actions > eval > Run workflow**, with the generator, judge and Genie space id. The run posts per-split scores,
+   error counts and latency as annotations; individual held-out v2 failures are deliberately not listed.
+3. Raw rows land in `<catalog>.app.eval_results`; each run is also logged to MLflow.
 
 ## Security model
 
