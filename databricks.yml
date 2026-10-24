@@ -123,9 +123,6 @@ resources:
             name: ${var.judge_endpoint}
             permission: CAN_QUERY
 
-  experiments:
-    plumbline_traces:
-      name: /Users/${workspace.current_user.userName}/plumbline-traces
 
 targets:
   dev:

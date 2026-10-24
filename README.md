@@ -182,7 +182,6 @@ by the `production` environment.
 * Free Edition is not for commercial use.
 * MLflow tracing is recorded for eval runs (they run as you). The app itself does not trace yet: its service
   principal has no experiment permission and no `MLFLOW_EXPERIMENT_ID`, so tracing is a silent no-op there.
-* `sample_questions.txt` is a broader set of free-form questions for manual exploration; it is not scored.
 
 ## License
 
