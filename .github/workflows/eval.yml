@@ -15,6 +15,10 @@ on:
         description: Endpoint that scores the SQL (use a different model family from the generator)
         default: databricks-meta-llama-3-3-70b-instruct
         required: true
+      genie_space_id:
+        description: Optional Genie space id; when set, Genie answers the same questions for comparison
+        default: ""
+        required: false
 
 concurrency:
   group: eval            # one eval at a time (Free Edition quotas); later dispatches queue
@@ -29,6 +33,7 @@ jobs:
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
       GENERATOR: ${{ inputs.generator_endpoint }}
       JUDGE: ${{ inputs.judge_endpoint }}
+      GENIE_SPACE_ID: ${{ inputs.genie_space_id }}
       EVAL_RUN_ID: gha-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +54,8 @@ jobs:
       - name: Run eval job (${{ inputs.generator_endpoint }} / judge ${{ inputs.judge_endpoint }})
         run: |
           jq -n --argjson job "$JOB_ID" --arg run "$EVAL_RUN_ID" --arg gen "$GENERATOR" --arg judge "$JUDGE" \
-            '{job_id: $job, notebook_params: {run_id: $run, generator_endpoint: $gen, judge_endpoint: $judge}}' > run.json
+                --arg genie "$GENIE_SPACE_ID" \
+            '{job_id: $job, notebook_params: {run_id: $run, generator_endpoint: $gen, judge_endpoint: $judge, genie_space_id: $genie}}' > run.json
           databricks jobs run-now --json @run.json --timeout 70m
 
       - name: Report results as annotations
