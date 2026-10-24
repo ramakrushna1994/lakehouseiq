@@ -215,15 +215,36 @@ def test_low_judge_scores_need_review():
     assert r.verdict == "NEEDS REVIEW"
 
 
-def test_metric_view_misuse_is_risky():
-    sql = "SELECT order_month, SUM(order_revenue) FROM cat.sales.mv_orders GROUP BY order_month"
-    r = run(FakeLLM(generate=reply(sql, "cat.sales.mv_orders")), FakeWH(OK))
-    assert r.verdict == "RISKY" and r.scores["misuse"]
+def test_metric_view_misuse_is_repaired_before_reaching_the_warehouse():
+    bad = "SELECT order_month, SUM(order_revenue) FROM cat.sales.mv_orders GROUP BY order_month"
+    llm = FakeLLM(generate=reply(bad, "cat.sales.mv_orders"), repair=reply(MV_SQL, "cat.sales.mv_orders"))
+    wh = FakeWH(OK)
+    r = run(llm, wh)
+    assert r.repaired and r.verdict == "GOOD" and r.error is None
+    assert len(wh.sqls) == 1 and "SUM(order_revenue)" not in wh.sqls[0]  # the bad SQL never ran
+    assert llm.roles()[:2] == ["generate", "repair"]
 
 
-def test_select_star_on_metric_view_is_risky():
-    r = run(FakeLLM(generate=reply("SELECT * FROM cat.sales.mv_orders")), FakeWH(OK))
-    assert r.verdict == "RISKY"
+def test_static_error_message_reaches_the_repair_prompt():
+    bad = "SELECT order_month, SUM(order_revenue) FROM cat.sales.mv_orders GROUP BY order_month"
+    prompts_seen = []
+
+    class Spy(FakeLLM):
+        def complete(self, prompt, endpoint, **kw):
+            prompts_seen.append(prompt)
+            return super().complete(prompt, endpoint, **kw)
+
+    run(Spy(generate=reply(bad, "cat.sales.mv_orders"), repair=reply(MV_SQL, "cat.sales.mv_orders")), FakeWH(OK))
+    repair_prompt = next(p for p in prompts_seen if "debugger" in p)
+    assert "Static check failed" in repair_prompt and "MEASURE(order_revenue)" in repair_prompt
+
+
+def test_unrepairable_misuse_is_an_error_not_a_silent_answer():
+    bad = "SELECT * FROM cat.sales.mv_orders"
+    wh = FakeWH(OK)
+    r = run(FakeLLM(generate=reply(bad, "cat.sales.mv_orders"), repair=RuntimeError("model down")), wh)
+    assert r.error and "Static check failed" in r.error and r.df is None
+    assert wh.sqls == []
 
 
 def test_invented_filter_value_is_risky():
@@ -277,3 +298,4 @@ def test_history_and_corrections_reach_the_generator():
     corr = [{"question": "q", "bad_sql": "bad", "corrected_sql": "good", "reason": "why"}]
     run(Spy(), FakeWH(OK), history=hist, corrections=corr)
     assert "earlier question" in seen[0] and "Known Corrections" in seen[0]
+

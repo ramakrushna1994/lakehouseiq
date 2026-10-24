@@ -53,6 +53,7 @@ def _referenced_views(sql: str, registry: Iterable[MetricView]) -> list[MetricVi
 
 def unknown_measures(sql: str, registry: Iterable[MetricView]) -> list[str]:
     """``MEASURE(x)`` calls where ``x`` is not a measure of a referenced metric view."""
+    registry = list(registry)
     views = _referenced_views(sql, registry)
     if not views:
         return []
@@ -203,7 +204,9 @@ def metric_view_misuse(sql: str, registry: Iterable[MetricView]) -> list[str]:
 
     (a) a measure aggregated without ``MEASURE()``, or ``MEASURE()`` wrapped in a
         second aggregate;
-    (b) ``SELECT *`` against a metric view.
+    (b) ``SELECT *`` against a metric view;
+    (c) a measure referenced outside ``MEASURE()`` (e.g. inside ``CASE``);
+    (d) ``MEASURE(x)`` where ``x`` is not a measure of the queried view(s).
     """
     views = _referenced_views(sql, registry)
     if not views:
@@ -219,6 +222,28 @@ def metric_view_misuse(sql: str, registry: Iterable[MetricView]) -> list[str]:
                 )
     if re.search(rf"\b{_AGGS}\s*\(\s*MEASURE\s*\(", code, re.IGNORECASE):
         problems.append("MEASURE() must not be wrapped in another aggregate")
+
+    # (c) a measure used bare (inside CASE, arithmetic, HAVING ...) instead of through MEASURE().
+    #     Output aliases are fine: MEASURE(x) AS x ... ORDER BY x.
+    aliases = {a.lower() for a in re.findall(r"\bAS\s+(\w+)", code, re.IGNORECASE)}
+    outside_measure = re.sub(r"\bMEASURE\s*\(\s*\w+\s*\)", " ", code, flags=re.IGNORECASE)
+    outside_measure = re.sub(r"\bAS\s+\w+", " ", outside_measure, flags=re.IGNORECASE)
+    for mv in views:
+        for m in mv.measure_names:
+            if m.lower() in aliases:
+                continue
+            if re.search(rf"(?<![\w.]){re.escape(m)}\b", outside_measure, re.IGNORECASE) and not any(
+                m in p_ for p_ in problems
+            ):
+                problems.append(f"measure '{m}' of {mv.name} is used without MEASURE(); write MEASURE({m})")
+
+    # (d) MEASURE(x) where x is not a measure of any metric view in FROM.
+    known = {m.lower() for mv in views for m in mv.measure_names}
+    for name in re.findall(r"\bMEASURE\s*\(\s*(\w+)\s*\)", code, re.IGNORECASE):
+        if name.lower() not in known:
+            owners = [mv.name for mv in registry if name.lower() in {x.lower() for x in mv.measure_names}]
+            hint = f"; it belongs to {', '.join(owners)} (query that view, or a cross-fact view)" if owners else ""
+            problems.append(f"'{name}' is not a measure of {', '.join(v.name for v in views)}{hint}")
 
     names = {mv.name.lower() for mv in views}
     mv_aliases = set(names)

@@ -231,3 +231,52 @@ class TestFinalVerdict:
 
     def test_misuse_none_is_accepted(self):
         assert final_verdict(10, 10, self.GOOD_JUDGE, None) == "GOOD"
+
+
+# --- misuse patterns observed live (held-out run); each must be caught before execution ---------------
+def _live_registry():
+    from pathlib import Path
+
+    from lakehouseiq.semantic import load_registry
+
+    return load_registry(Path(__file__).resolve().parent.parent / "app" / "semantic")
+
+
+def test_measure_inside_case_is_flagged():
+    from lakehouseiq.scoring import metric_view_misuse
+
+    sql = ("SELECT dept_name, AVG(CASE WHEN review_period = '2026-Q1' THEN avg_rating END) AS q1_avg "
+           "FROM workspace.hr.mv_performance GROUP BY dept_name")
+    assert any("avg_rating" in p for p in metric_view_misuse(sql, _live_registry()))
+
+
+def test_measure_from_another_view_is_flagged_with_owner_hint():
+    from lakehouseiq.scoring import metric_view_misuse
+
+    sql = "SELECT category, MEASURE(return_count) / MEASURE(line_count) * 100 AS r FROM workspace.sales.mv_returns GROUP BY category"
+    problems = metric_view_misuse(sql, _live_registry())
+    assert any("line_count" in p and "mv_order_lines" in p for p in problems)
+
+
+def test_sum_over_measures_is_flagged():
+    from lakehouseiq.scoring import metric_view_misuse
+
+    sql = "SELECT dept_name, SUM(total_overtime) / SUM(total_base) * 100 AS pct FROM workspace.hr.mv_payroll GROUP BY ALL"
+    problems = metric_view_misuse(sql, _live_registry())
+    assert any("total_overtime" in p for p in problems) and any("total_base" in p for p in problems)
+
+
+def test_measure_alias_reuse_is_not_flagged():
+    from lakehouseiq.scoring import metric_view_misuse
+
+    sql = ("SELECT product_name, MEASURE(net_revenue) AS net_revenue FROM workspace.sales.mv_order_lines "
+           "WHERE category = 'Electronics' GROUP BY ALL ORDER BY net_revenue DESC LIMIT 5")
+    assert metric_view_misuse(sql, _live_registry()) == []
+
+
+def test_measure_in_having_through_measure_is_clean():
+    from lakehouseiq.scoring import metric_view_misuse
+
+    sql = ("SELECT dept_name, MEASURE(actual_vs_budget_pct) AS pct FROM workspace.finance.mv_budget "
+           "GROUP BY ALL HAVING MEASURE(actual_vs_budget_pct) > 10")
+    assert metric_view_misuse(sql, _live_registry()) == []

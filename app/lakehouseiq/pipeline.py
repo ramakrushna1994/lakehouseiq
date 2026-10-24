@@ -79,14 +79,22 @@ def _generate(question, settings, schema_ctx, registry, history, corrections, ll
         corrections=corrections,
         **kwargs,
     )
-    return parse_sql_response(llm.complete(prompt, settings.generator_endpoint), known_views)
+    return parse_sql_response(
+        llm.complete(prompt, settings.generator_endpoint, max_tokens=GENERATION_MAX_TOKENS), known_views
+    )
+
+
+# Reasoning models (e.g. gpt-oss) spend tokens thinking before they answer; this cap only bounds the reply.
+GENERATION_MAX_TOKENS = 4000
 
 
 def _repair(question, failed_sql, error, settings, schema_ctx, registry, llm, known_views):
     prompt = prompts.build_retry_prompt(
         question, failed_sql, error, **_context_kwargs(settings, schema_ctx, registry)
     )
-    return parse_sql_response(llm.complete(prompt, settings.generator_endpoint), known_views)
+    return parse_sql_response(
+        llm.complete(prompt, settings.generator_endpoint, max_tokens=GENERATION_MAX_TOKENS), known_views
+    )
 
 
 def _score(question, sql, df, settings, schema_ctx, registry, llm, timings) -> tuple[dict, str]:
@@ -185,9 +193,14 @@ def answer_question(
         sql = ensure_limit(parsed["sql"], settings.max_rows)
         result.sql, result.source_view = sql, parsed["view"]
 
-        # 3. execute, with one repair attempt
-        with _step("execute", timings):
-            df, err = wh.run_query(sql, settings.max_rows)
+        # 3. execute, with one repair attempt. Metric-view misuse is detectable in code, so it goes
+        #    straight to repair with a precise message instead of spending a warehouse round trip.
+        static = scoring.metric_view_misuse(sql, registry)
+        if static:
+            df, err = None, "Static check failed before execution: " + "; ".join(static)
+        else:
+            with _step("execute", timings):
+                df, err = wh.run_query(sql, settings.max_rows)
         if err:
             with _step("repair", timings):
                 try:
