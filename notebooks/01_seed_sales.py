@@ -601,22 +601,22 @@ def write_tables(spark, catalog: str, schema: str, tables: dict, table_comments:
 # COMMAND ----------
 
 if __name__ == "__main__":
-    dbutils.widgets.text("catalog", "workspace")  # noqa: F821
-    dbutils.widgets.text("as_of_date", "2026-06-30")  # noqa: F821
-    catalog = dbutils.widgets.get("catalog")  # noqa: F821
-    as_of_date = dbutils.widgets.get("as_of_date")  # noqa: F821
+    dbutils.widgets.text("catalog", "workspace")
+    dbutils.widgets.text("as_of_date", "2026-06-30")
+    catalog = dbutils.widgets.get("catalog")
+    as_of_date = dbutils.widgets.get("as_of_date")
 
-    tables = build_sales(spark, as_of_date)  # noqa: F821
-    write_tables(spark, catalog, "sales", tables, TABLE_COMMENTS, COLUMN_COMMENTS)  # noqa: F821
+    tables = build_sales(spark, as_of_date)
+    write_tables(spark, catalog, "sales", tables, TABLE_COMMENTS, COLUMN_COMMENTS)
 
-    written = {name: spark.table(f"{catalog}.sales.{name}") for name in tables}  # noqa: F821
+    written = {name: spark.table(f"{catalog}.sales.{name}") for name in tables}
     for name, df in written.items():
         print(f"{name:16s} {df.count():>8,d} rows")
 
 # COMMAND ----------
 
 if __name__ == "__main__":
-    result = check_sales(spark, written, as_of_date)  # noqa: F821
+    result = check_sales(spark, written, as_of_date)
     print("order_items", result["row_counts"]["order_items"], "rows")
     for rule, count in result["violations"].items():
         print(f"  ok  {rule}: {count}")

@@ -20,18 +20,18 @@
 
 # COMMAND ----------
 
-dbutils.library.restartPython()  # noqa: F821
+dbutils.library.restartPython()
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "workspace")  # noqa: F821
-dbutils.widgets.text("as_of_date", "")  # noqa: F821
-dbutils.widgets.text("warehouse_id", "")  # noqa: F821
-dbutils.widgets.text("generator_endpoint", "databricks-meta-llama-3-3-70b-instruct")  # noqa: F821
-dbutils.widgets.text("judge_endpoint", "databricks-gpt-oss-120b")  # noqa: F821
-dbutils.widgets.text("genie_space_id", "")  # noqa: F821
-dbutils.widgets.text("run_id", "")  # noqa: F821
-dbutils.widgets.text("limit", "0")  # noqa: F821
+dbutils.widgets.text("catalog", "workspace")
+dbutils.widgets.text("as_of_date", "")
+dbutils.widgets.text("warehouse_id", "")
+dbutils.widgets.text("generator_endpoint", "databricks-meta-llama-3-3-70b-instruct")
+dbutils.widgets.text("judge_endpoint", "databricks-gpt-oss-120b")
+dbutils.widgets.text("genie_space_id", "")
+dbutils.widgets.text("run_id", "")
+dbutils.widgets.text("limit", "0")
 
 # COMMAND ----------
 
@@ -39,8 +39,8 @@ if __name__ == "__main__":
     import os
     import sys
 
-    get = dbutils.widgets.get  # noqa: F821
-    notebook_path = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()  # noqa: F821
+    get = dbutils.widgets.get
+    notebook_path = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
     repo_root = os.path.dirname(os.path.dirname("/Workspace" + notebook_path))
     sys.path[:0] = [repo_root, os.path.join(repo_root, "app")]
 
@@ -66,8 +66,8 @@ if __name__ == "__main__":
 # COMMAND ----------
 
 if __name__ == "__main__":
-    display(  # noqa: F821
-        spark.sql(  # noqa: F821
+    display(
+        spark.sql(
             f"SELECT system, COUNT(*) AS questions, ROUND(AVG(CAST(exec_match AS INT)), 3) AS exec_accuracy, "
             f"percentile(latency_ms, 0.5) AS p50_latency_ms "
             f"FROM {get('catalog')}.app.eval_results GROUP BY system ORDER BY system"

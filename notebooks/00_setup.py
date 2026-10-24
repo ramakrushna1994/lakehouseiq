@@ -56,25 +56,25 @@ def setup_statements(catalog: str) -> list:
 # COMMAND ----------
 
 if __name__ == "__main__":
-    dbutils.widgets.text("catalog", "workspace")  # noqa: F821
-    catalog = dbutils.widgets.get("catalog")  # noqa: F821
+    dbutils.widgets.text("catalog", "workspace")
+    catalog = dbutils.widgets.get("catalog")
     if not catalog.replace("_", "").isalnum():
         raise ValueError(f"catalog must be a simple identifier, got {catalog!r}")
 
     try:
-        spark.sql(f"USE CATALOG {catalog}")  # noqa: F821
+        spark.sql(f"USE CATALOG {catalog}")
     except Exception:
         # Not present: try to create it (not allowed on Free Edition, where `workspace` already exists).
-        spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog}")  # noqa: F821
-        spark.sql(f"USE CATALOG {catalog}")  # noqa: F821
+        spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog}")
+        spark.sql(f"USE CATALOG {catalog}")
 
     for stmt in setup_statements(catalog):
-        spark.sql(stmt)  # noqa: F821
+        spark.sql(stmt)
         print(stmt.split("(")[0].strip())
 
 # COMMAND ----------
 
 if __name__ == "__main__":
-    for row in spark.sql(f"SHOW TABLES IN {catalog}.app").collect():  # noqa: F821
-        n = spark.table(f"{catalog}.app.{row.tableName}").count()  # noqa: F821
+    for row in spark.sql(f"SHOW TABLES IN {catalog}.app").collect():
+        n = spark.table(f"{catalog}.app.{row.tableName}").count()
         print(f"{catalog}.app.{row.tableName}: {n} rows")

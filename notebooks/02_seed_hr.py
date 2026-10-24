@@ -160,7 +160,8 @@ def build_performance_reviews(spark, as_of_date, employees):
     qs = spark.range(0, N_REVIEW_QUARTERS).select(F.col("id").cast("int").alias("qn"))
     r = employees.select("emp_id", "dept_id").crossJoin(qs)
     r = r.withColumn("review_date", F.add_months(asof, -3 * F.col("qn")))
-    h = lambda s: _hrand("emp_id", "qn", seed=s)  # noqa: E731
+    def h(s):
+        return _hrand("emp_id", "qn", seed=s)
     w = Window.orderBy(F.col("qn").desc(), "emp_id")
     return r.select(
         F.row_number().over(w).cast("int").alias("review_id"),
@@ -180,7 +181,8 @@ def build_attendance(spark, as_of_date, employees):
     asof = F.lit(as_of_date).cast("date")
     ws = spark.range(0, N_ATT_WEEKS).select(F.col("id").cast("int").alias("wn"))
     a = employees.select("emp_id", "dept_id").crossJoin(ws)
-    h = lambda s: _hrand("emp_id", "wn", seed=s)  # noqa: E731
+    def h(s):
+        return _hrand("emp_id", "wn", seed=s)
     days = _between(h(1401), 3, 5)
     leave_raw = F.when(h(1402) < 0.2, _between(h(1403), 1, 2)).otherwise(F.lit(0))
     leave = F.least(leave_raw, F.lit(5) - days)
@@ -328,22 +330,22 @@ def write_tables(spark, catalog: str, schema: str, tables: dict, table_comments:
 # COMMAND ----------
 
 if __name__ == "__main__":
-    dbutils.widgets.text("catalog", "workspace")  # noqa: F821
-    dbutils.widgets.text("as_of_date", "2026-06-30")  # noqa: F821
-    catalog = dbutils.widgets.get("catalog")  # noqa: F821
-    as_of_date = dbutils.widgets.get("as_of_date")  # noqa: F821
+    dbutils.widgets.text("catalog", "workspace")
+    dbutils.widgets.text("as_of_date", "2026-06-30")
+    catalog = dbutils.widgets.get("catalog")
+    as_of_date = dbutils.widgets.get("as_of_date")
 
-    tables = build_hr(spark, as_of_date)  # noqa: F821
-    write_tables(spark, catalog, "hr", tables, TABLE_COMMENTS, COLUMN_COMMENTS)  # noqa: F821
+    tables = build_hr(spark, as_of_date)
+    write_tables(spark, catalog, "hr", tables, TABLE_COMMENTS, COLUMN_COMMENTS)
 
-    written = {name: spark.table(f"{catalog}.hr.{name}") for name in tables}  # noqa: F821
+    written = {name: spark.table(f"{catalog}.hr.{name}") for name in tables}
     for name, df in written.items():
         print(f"{name:20s} {df.count():>8,d} rows")
 
 # COMMAND ----------
 
 if __name__ == "__main__":
-    result = check_hr(spark, written, as_of_date)  # noqa: F821
+    result = check_hr(spark, written, as_of_date)
     for rule, count in result["violations"].items():
         print(f"  ok  {rule}: {count}")
     print("All HR integrity checks passed.")

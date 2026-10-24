@@ -167,7 +167,8 @@ def build_budget_lines(spark, as_of_date):
     first_cc = {}
     for i, c in enumerate(COST_CENTERS):
         first_cc.setdefault(c[2], i + 1)
-    h = lambda s: _hrand("dept_id", "account_id", "budget_year", "budget_month", seed=s)  # noqa: E731
+    def h(s):
+        return _hrand("dept_id", "account_id", "budget_year", "budget_month", seed=s)
     # The grid is unique per (dept, account, year, month); sampling it keeps that grain unique.
     sampled = grid.withColumn("k", h(1501)).orderBy("k").limit(N_BUDGET)
     budget = F.round(F.lit(5000) + h(1502) * 195000, 2)
@@ -407,28 +408,28 @@ def write_tables(spark, catalog: str, schema: str, tables: dict, table_comments:
 # COMMAND ----------
 
 if __name__ == "__main__":
-    dbutils.widgets.text("catalog", "workspace")  # noqa: F821
-    dbutils.widgets.text("as_of_date", "2026-06-30")  # noqa: F821
-    catalog = dbutils.widgets.get("catalog")  # noqa: F821
-    as_of_date = dbutils.widgets.get("as_of_date")  # noqa: F821
+    dbutils.widgets.text("catalog", "workspace")
+    dbutils.widgets.text("as_of_date", "2026-06-30")
+    catalog = dbutils.widgets.get("catalog")
+    as_of_date = dbutils.widgets.get("as_of_date")
 
-    orders = spark.table(f"{catalog}.sales.orders")  # noqa: F821
-    products = spark.table(f"{catalog}.sales.products")  # noqa: F821
-    departments = spark.table(f"{catalog}.hr.departments")  # noqa: F821
-    employees = spark.table(f"{catalog}.hr.employees")  # noqa: F821
+    orders = spark.table(f"{catalog}.sales.orders")
+    products = spark.table(f"{catalog}.sales.products")
+    departments = spark.table(f"{catalog}.hr.departments")
+    employees = spark.table(f"{catalog}.hr.employees")
 
-    tables = build_finance(spark, as_of_date, orders=orders, products=products,  # noqa: F821
+    tables = build_finance(spark, as_of_date, orders=orders, products=products,
                            departments=departments, employees=employees)
-    write_tables(spark, catalog, "finance", tables, TABLE_COMMENTS, COLUMN_COMMENTS)  # noqa: F821
+    write_tables(spark, catalog, "finance", tables, TABLE_COMMENTS, COLUMN_COMMENTS)
 
-    written = {name: spark.table(f"{catalog}.finance.{name}") for name in tables}  # noqa: F821
+    written = {name: spark.table(f"{catalog}.finance.{name}") for name in tables}
     for name, df in written.items():
         print(f"{name:16s} {df.count():>8,d} rows")
 
 # COMMAND ----------
 
 if __name__ == "__main__":
-    result = check_finance(spark, written, as_of_date, orders=orders, employees=employees)  # noqa: F821
+    result = check_finance(spark, written, as_of_date, orders=orders, employees=employees)
     print("invoice_lines", result["row_counts"]["invoice_lines"], "rows")
     for rule, count in result["violations"].items():
         print(f"  ok  {rule}: {count}")

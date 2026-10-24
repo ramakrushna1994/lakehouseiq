@@ -2,6 +2,8 @@
 line-length = 120
 target-version = "py311"
 extend-exclude = ["docs"]
+# Names the Databricks notebook runtime injects; declared here so notebooks need no per-line suppressions.
+builtins = ["spark", "dbutils", "display"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["lakehouseiq", "eval"]

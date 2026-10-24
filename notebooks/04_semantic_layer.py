@@ -22,7 +22,7 @@
 
 # COMMAND ----------
 
-dbutils.library.restartPython()  # noqa: F821
+dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -161,12 +161,12 @@ if __name__ == "__main__":
     import os
     import sys
 
-    dbutils.widgets.text("catalog", "workspace")  # noqa: F821
-    dbutils.widgets.text("as_of_date", "2026-06-30")  # noqa: F821
-    dbutils.widgets.text("semantic_dir", "")  # noqa: F821  # <bundle files root>/app/semantic
-    catalog = dbutils.widgets.get("catalog")  # noqa: F821
-    as_of_date = dbutils.widgets.get("as_of_date")  # noqa: F821
-    semantic_dir = dbutils.widgets.get("semantic_dir")  # noqa: F821
+    dbutils.widgets.text("catalog", "workspace")
+    dbutils.widgets.text("as_of_date", "2026-06-30")
+    dbutils.widgets.text("semantic_dir", "")# <bundle files root>/app/semantic
+    catalog = dbutils.widgets.get("catalog")
+    as_of_date = dbutils.widgets.get("as_of_date")
+    semantic_dir = dbutils.widgets.get("semantic_dir")
     if not semantic_dir:
         raise ValueError("pass semantic_dir (the job sets it to ${workspace.file_path}/app/semantic)")
 
@@ -181,18 +181,18 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     for schema in sorted({mv.schema for mv in registry}):
-        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")  # noqa: F821
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
 
     for mv in registry:
         name = fqn(catalog, mv)
-        spark.sql(metric_view_sql(name, render_spec_yaml(mv, catalog, as_of_date)))  # noqa: F821
+        spark.sql(metric_view_sql(name, render_spec_yaml(mv, catalog, as_of_date)))
         print("created metric view", name)
 
 # COMMAND ----------
 
 if __name__ == "__main__":
     for name, ddl in cross_fact_view_sql(catalog, as_of_date).items():
-        spark.sql(ddl)  # noqa: F821
+        spark.sql(ddl)
         print("created view", f"{catalog}.sales.{name}")
 
 # COMMAND ----------
@@ -209,11 +209,11 @@ if __name__ == "__main__":
     for mv in registry:
         name = fqn(catalog, mv)
         try:
-            row = spark.sql(smoke_query(name, mv.measure_names)).first()  # noqa: F821
+            row = spark.sql(smoke_query(name, mv.measure_names)).first()
             print(f"ok  {name}: " + ", ".join(f"{m}={row[m]}" for m in mv.measure_names[:3]) + " ...")
         except Exception as exc:
             failures[name] = str(exc)[:400]
     for view in ("v_product_performance", "v_customer_segments"):
-        n = spark.table(f"{catalog}.sales.{view}").count()  # noqa: F821
+        n = spark.table(f"{catalog}.sales.{view}").count()
         print(f"ok  {catalog}.sales.{view}: {n} rows")
     assert not failures, f"metric views that failed their smoke test: {failures}"

@@ -45,10 +45,10 @@ def grant_statements(catalog: str, principal: str) -> list:
 if __name__ == "__main__":
     from databricks.sdk import WorkspaceClient
 
-    dbutils.widgets.text("catalog", "workspace")  # noqa: F821
-    dbutils.widgets.text("app_name", "lakehouseiq")  # noqa: F821
-    catalog = dbutils.widgets.get("catalog")  # noqa: F821
-    app_name = dbutils.widgets.get("app_name")  # noqa: F821
+    dbutils.widgets.text("catalog", "workspace")
+    dbutils.widgets.text("app_name", "lakehouseiq")
+    catalog = dbutils.widgets.get("catalog")
+    app_name = dbutils.widgets.get("app_name")
 
     app = WorkspaceClient().apps.get(app_name)
     principal = app.service_principal_client_id
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     skipped = 0
     for stmt in grant_statements(catalog, principal):
         try:
-            spark.sql(stmt)  # noqa: F821
+            spark.sql(stmt)
             print(stmt)
         except Exception as exc:  # AnalysisException; message carries the error class
             if "NOT_FOUND" in str(exc) or "does not exist" in str(exc):
@@ -75,4 +75,4 @@ if __name__ == "__main__":
 # COMMAND ----------
 
 if __name__ == "__main__" and not skipped:
-    spark.sql(f"SHOW GRANTS `{principal}` ON SCHEMA {catalog}.sales").show(truncate=False)  # noqa: F821
+    spark.sql(f"SHOW GRANTS `{principal}` ON SCHEMA {catalog}.sales").show(truncate=False)
