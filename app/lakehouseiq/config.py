@@ -13,8 +13,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 DEFAULT_CATALOG = "workspace"
-DEFAULT_GENERATOR_ENDPOINT = "databricks-meta-llama-3-3-70b-instruct"
-DEFAULT_JUDGE_ENDPOINT = "databricks-gpt-oss-120b"
+DEFAULT_GENERATOR_ENDPOINT = "databricks-gpt-oss-120b"
+DEFAULT_JUDGE_ENDPOINT = "databricks-meta-llama-3-3-70b-instruct"
 
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 

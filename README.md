@@ -71,6 +71,20 @@ Bundle variables (override with `--var name=value`): `catalog` (default `workspa
 `generator_endpoint`, `judge_endpoint`, `genie_space_id`. The warehouse is looked up by the name
 `Serverless Starter Warehouse`.
 
+## Model choice
+
+The generator and judge are bundle variables; the defaults come from a measured comparison on held-out set v1
+(10 questions never used for tuning), with the judge always from a different model family than the generator:
+
+| Generator | Judge | Held-out v1 | Curated (30) | p50 latency |
+| --- | --- | --- | --- | --- |
+| `databricks-gpt-oss-120b` | `databricks-meta-llama-3-3-70b-instruct` | **7/10** | 29/30 | 6.5 s |
+| `databricks-meta-llama-3-3-70b-instruct` | `databricks-gpt-oss-120b` | 2/10 | 30/30 | 6.6 s |
+
+Ten questions is a small sample, and choosing a model on held-out v1 makes that set less clean, so held-out v2
+(`eval/holdout_v2.yaml`, frozen before any further changes) is the set to quote. Re-run any pairing from the
+**Actions > eval** workflow.
+
 ## Evaluate against Genie
 
 `eval/questions.yaml` holds 30 questions (10 per domain) with reference SQL.

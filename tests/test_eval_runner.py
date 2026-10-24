@@ -145,3 +145,22 @@ def test_holdout_file_loads_and_substitutes_catalog():
     qs = load_questions(HOLDOUT_PATH, catalog="cat_x")
     assert len(qs) == 10 and all(q["id"].startswith("holdout-") for q in qs)
     assert all("${catalog}" not in q["reference_sql"] and "cat_x." in q["reference_sql"] for q in qs)
+
+
+def test_holdout_v2_has_30_frozen_questions_with_definitions():
+    from eval.runner import HOLDOUT_V2_PATH, load_questions, split_of
+
+    qs = load_questions(HOLDOUT_V2_PATH, catalog="cat_x")
+    assert len(qs) == 30 and len({q["id"] for q in qs}) == 30
+    assert all(split_of(q["id"]) == "holdout_v2" for q in qs)
+    assert split_of("holdout-03") == "holdout" and split_of("sales-01") == "curated"
+
+
+def test_summarize_reports_v2_split():
+    from eval.runner import summarize
+
+    rows = [
+        {"system": "assistant", "question_id": "h2-01", "exec_match": True, "verdict": "GOOD", "latency_ms": 1},
+        {"system": "assistant", "question_id": "h2-02", "exec_match": False, "verdict": "GOOD", "latency_ms": 1},
+    ]
+    assert summarize(rows)["exec_accuracy_assistant_holdout_v2"] == 0.5

@@ -10,10 +10,10 @@ variables:
     default: "2026-06-30"
   generator_endpoint:
     description: Foundation Model API endpoint that writes the SQL.
-    default: databricks-meta-llama-3-3-70b-instruct
+    default: databricks-gpt-oss-120b
   judge_endpoint:
     description: Independent Foundation Model API endpoint that scores the SQL.
-    default: databricks-gpt-oss-120b
+    default: databricks-meta-llama-3-3-70b-instruct
   genie_space_id:
     description: Optional Genie space id; when set, the eval also benchmarks Genie.
     default: ""

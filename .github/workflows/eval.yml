@@ -2,17 +2,18 @@ name: eval
 
 # Runs the eval job on Databricks with a chosen generator/judge pair, then posts per-split accuracy and the
 # failing questions as run annotations (visible on the run page and via the GitHub API).
+# Held-out v2 failures are deliberately NOT listed: only its score is reported, so nobody tunes on it.
 
 on:
   workflow_dispatch:
     inputs:
       generator_endpoint:
         description: Foundation Model endpoint that writes the SQL
-        default: databricks-meta-llama-3-3-70b-instruct
+        default: databricks-gpt-oss-120b
         required: true
       judge_endpoint:
         description: Endpoint that scores the SQL (use a different model family from the generator)
-        default: databricks-gpt-oss-120b
+        default: databricks-meta-llama-3-3-70b-instruct
         required: true
 
 concurrency:
@@ -59,12 +60,13 @@ jobs:
             databricks api post /api/2.0/sql/statements --json @stmt.json
           }
           T="${CATALOG}.app.eval_results"
-          sql "SELECT system, CASE WHEN question_id LIKE 'holdout-%' THEN 'holdout' ELSE 'curated' END AS split,
+          sql "SELECT system, CASE WHEN question_id LIKE 'h2-%' THEN 'holdout_v2' WHEN question_id LIKE 'holdout-%' THEN 'holdout_v1' ELSE 'curated' END AS split,
                       COUNT(*) AS n, SUM(CAST(exec_match AS INT)) AS correct,
                       CAST(PERCENTILE(latency_ms, 0.5) AS BIGINT) AS p50_ms
                FROM $T WHERE run_id = '$EVAL_RUN_ID' GROUP BY ALL ORDER BY 1, 2" \
             | jq -r --arg g "$GENERATOR" --arg j "$JUDGE" \
                 '.result.data_array // [] | .[] | "::notice title=\(.[0]) \(.[1])::\(.[3])/\(.[2]) correct, p50 \(.[4]) ms (generator \($g), judge \($j))"'
           sql "SELECT question_id, LEFT(COALESCE(error, ''), 300) FROM $T
-               WHERE run_id = '$EVAL_RUN_ID' AND system = 'assistant' AND NOT exec_match ORDER BY question_id" \
+               WHERE run_id = '$EVAL_RUN_ID' AND system = 'assistant' AND NOT exec_match
+                 AND question_id NOT LIKE 'h2-%' ORDER BY question_id" \
             | jq -r '.result.data_array // [] | .[] | "::warning title=miss \(.[0])::\(.[1] | gsub("[\\r\\n]"; " "))"'

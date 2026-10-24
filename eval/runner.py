@@ -37,7 +37,9 @@ from eval.compare import results_match
 logger = logging.getLogger(__name__)
 
 QUESTIONS_PATH = Path(__file__).resolve().parent / "questions.yaml"
-HOLDOUT_PATH = Path(__file__).resolve().parent / "holdout.yaml"  # never tuned on; see the file header
+HOLDOUT_PATH = Path(__file__).resolve().parent / "holdout.yaml"  # v1: used once to choose the generator model
+HOLDOUT_V2_PATH = Path(__file__).resolve().parent / "holdout_v2.yaml"  # frozen; the number to report
+SPLIT_PREFIXES = (("h2-", "holdout_v2"), ("holdout-", "holdout"))  # anything else is "curated"
 TABLE_COLUMNS = (
     "run_id", "ts", "system", "question_id", "question", "generated_sql", "exec_match",
     "judge_relevance", "verdict", "latency_ms", "error",
@@ -210,6 +212,13 @@ def run_eval(
     return rows
 
 
+def split_of(question_id: str) -> str:
+    for prefix, split in SPLIT_PREFIXES:
+        if str(question_id).startswith(prefix):
+            return split
+    return "curated"
+
+
 def _accuracy(rows: list[dict]) -> float:
     return sum(r["exec_match"] for r in rows) / len(rows)
 
@@ -217,8 +226,8 @@ def _accuracy(rows: list[dict]) -> float:
 def summarize(rows: list[dict]) -> dict:
     """MLflow metrics: accuracy per system (overall, curated, holdout), blocked/repair rates, assistant p50 latency.
 
-    The held-out split (question ids starting with ``holdout-``) is the number to report: prompts and metric views
-    are never tuned on it. The curated split has been used for debugging and is optimistic by construction.
+    ``holdout_v2`` (ids ``h2-``) is the number to report: it is frozen and never used for tuning. ``holdout`` (v1)
+    was used once to choose the generator model. ``curated`` has been used for debugging and is optimistic.
     """
     a = [r for r in rows if r["system"] == "assistant"]
     g = [r for r in rows if r["system"] == "genie"]
@@ -227,8 +236,8 @@ def summarize(rows: list[dict]) -> dict:
         if not rs:
             continue
         metrics[f"exec_accuracy_{system}"] = _accuracy(rs)
-        for split in ("curated", "holdout"):
-            part = [r for r in rs if str(r.get("question_id", "")).startswith("holdout-") == (split == "holdout")]
+        for split in ("curated", "holdout", "holdout_v2"):
+            part = [r for r in rs if split_of(r.get("question_id", "")) == split]
             if part:
                 metrics[f"exec_accuracy_{system}_{split}"] = _accuracy(part)
     if a:
@@ -332,8 +341,9 @@ def main(argv: list[str] | None = None) -> int:
         ask = lambda question: ask_genie(w, genie_space, question)  # noqa: E731
 
     questions = load_questions(catalog=settings.catalog, as_of_date=schema_ctx.as_of_date)
-    if HOLDOUT_PATH.exists():
-        questions += load_questions(HOLDOUT_PATH, catalog=settings.catalog, as_of_date=schema_ctx.as_of_date)
+    for extra in (HOLDOUT_PATH, HOLDOUT_V2_PATH):
+        if extra.exists():
+            questions += load_questions(extra, catalog=settings.catalog, as_of_date=schema_ctx.as_of_date)
     done = load_done(warehouse.run_query, settings.catalog, run_id)
     rows = run_eval(
         questions,
