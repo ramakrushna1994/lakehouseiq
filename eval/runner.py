@@ -123,6 +123,15 @@ def extract_genie_sql(message) -> str | None:
     return None
 
 
+def genie_question(question: str, as_of_date: str) -> str:
+    """Give Genie the same "today" the assistant's prompt gets, so relative dates resolve against the data.
+
+    Without this, "last 6 months" resolves against the calendar date and the frozen demo data looks empty,
+    which penalises Genie for an artifact of the eval rather than a wrong answer.
+    """
+    return f"Treat {as_of_date} as today's date (the data ends on that day). {question}"
+
+
 def ask_genie(workspace_client, space_id: str, question: str, timeout_minutes: int = 5):
     """Ask Genie and return ``(sql | None, error | None)``. Never raises."""
     try:
@@ -240,6 +249,9 @@ def summarize(rows: list[dict]) -> dict:
             part = [r for r in rs if split_of(r.get("question_id", "")) == split]
             if part:
                 metrics[f"exec_accuracy_{system}_{split}"] = _accuracy(part)
+    if g:
+        # Infrastructure failures (Genie call did not complete) are not wrong answers; report them separately.
+        metrics["error_rate_genie"] = sum(r["verdict"] == "ERROR" for r in g) / len(g)
     if a:
         metrics["blocked_rate"] = sum(r["verdict"] == "BLOCKED" for r in a) / len(a)
         metrics["repair_rate"] = sum(bool(r.get("repaired")) for r in a) / len(a)
@@ -338,7 +350,7 @@ def main(argv: list[str] | None = None) -> int:
         from databricks.sdk import WorkspaceClient
 
         w = WorkspaceClient()
-        ask = lambda question: ask_genie(w, genie_space, question)  # noqa: E731
+        ask = lambda question: ask_genie(w, genie_space, genie_question(question, schema_ctx.as_of_date))  # noqa: E731
 
     questions = load_questions(catalog=settings.catalog, as_of_date=schema_ctx.as_of_date)
     for extra in (HOLDOUT_PATH, HOLDOUT_V2_PATH):

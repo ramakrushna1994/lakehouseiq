@@ -164,3 +164,20 @@ def test_summarize_reports_v2_split():
         {"system": "assistant", "question_id": "h2-02", "exec_match": False, "verdict": "GOOD", "latency_ms": 1},
     ]
     assert summarize(rows)["exec_accuracy_assistant_holdout_v2"] == 0.5
+
+
+def test_genie_question_carries_the_as_of_date():
+    from eval.runner import genie_question
+
+    q = genie_question("What is net revenue by month for the last 6 months?", "2026-06-30")
+    assert q.startswith("Treat 2026-06-30 as today's date") and q.endswith("last 6 months?")
+
+
+def test_genie_errors_reported_separately():
+    from eval.runner import summarize
+
+    rows = [
+        {"system": "genie", "question_id": "h2-01", "exec_match": False, "verdict": "ERROR", "latency_ms": 1},
+        {"system": "genie", "question_id": "h2-02", "exec_match": True, "verdict": "GOOD", "latency_ms": 1},
+    ]
+    assert summarize(rows)["error_rate_genie"] == 0.5
