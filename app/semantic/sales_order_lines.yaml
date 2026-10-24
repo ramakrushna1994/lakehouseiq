@@ -42,13 +42,13 @@ spec:
       expr: product.supplier
       comment: Product supplier
     - name: customer_region
-      expr: customer.region
+      expr: orders.customer.region
       comment: Sales region of the customer
     - name: customer_segment
-      expr: customer.segment
+      expr: orders.customer.segment
       comment: Customer segment (Enterprise, Mid-Market, SMB)
     - name: channel_name
-      expr: channel.channel_name
+      expr: orders.channel.channel_name
       comment: Sales channel name
   measures:
     - name: units_sold
