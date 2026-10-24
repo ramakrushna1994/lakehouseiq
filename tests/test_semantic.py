@@ -1,12 +1,12 @@
-"""Offline tests for lakehouseiq.semantic and the shipped registry."""
+"""Offline tests for plumbline.semantic and the shipped registry."""
 
 from pathlib import Path
 
 import pytest
 import yaml
 
-from lakehouseiq import semantic
-from lakehouseiq.semantic import (
+from plumbline import semantic
+from plumbline.semantic import (
     CROSS_FACT_VIEWS,
     fqn,
     known_identifiers,

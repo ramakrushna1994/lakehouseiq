@@ -1,7 +1,7 @@
-"""LakehouseIQ - Streamlit front end.
+"""Plumbline - Streamlit front end.
 
 UI only: no SQL and no prompt text live here. Everything that touches the model or the
-warehouse goes through ``lakehouseiq.pipeline.answer_question``.
+warehouse goes through ``plumbline.pipeline.answer_question``.
 """
 
 import uuid
@@ -12,11 +12,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from lakehouseiq import store, tracing, warehouse
-from lakehouseiq.config import Settings
-from lakehouseiq.parsing import format_sql
-from lakehouseiq.pipeline import AnswerResult, answer_question
-from lakehouseiq.semantic import load_registry
+from plumbline import store, tracing, warehouse
+from plumbline.config import Settings
+from plumbline.parsing import format_sql
+from plumbline.pipeline import AnswerResult, answer_question
+from plumbline.semantic import load_registry
 
 
 def md_safe(text) -> str:
@@ -58,7 +58,7 @@ VERDICT_LABELS = {
     "ERROR": ("Error", "error"),
 }
 
-st.set_page_config(page_title="LakehouseIQ", page_icon="🏠", layout="wide")
+st.set_page_config(page_title="Plumbline", page_icon="🏠", layout="wide")
 st.markdown(
     """
 <style>
@@ -112,7 +112,7 @@ except Exception as exc:
 # ── sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("## LakehouseIQ")
+    st.markdown("## Plumbline")
     st.caption("Ask your Unity Catalog metric views in plain English")
     st.divider()
     st.markdown("##### Quick questions")
@@ -284,7 +284,7 @@ turns = st.session_state["turns"]
 
 if not turns:
     st.markdown(
-        '<div class="welcome"><h2>Welcome to LakehouseIQ</h2>'
+        '<div class="welcome"><h2>Welcome to Plumbline</h2>'
         "<p>Ask about sales, HR and finance in plain English. Answers come from governed metric views.</p></div>",
         unsafe_allow_html=True,
     )

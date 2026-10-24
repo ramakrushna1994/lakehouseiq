@@ -1,6 +1,6 @@
-"""Offline tests for lakehouseiq.parsing."""
+"""Offline tests for plumbline.parsing."""
 
-from lakehouseiq.parsing import format_sql, parse_sql_response, strip_markdown_fences
+from plumbline.parsing import format_sql, parse_sql_response, strip_markdown_fences
 
 VIEW = "workspace.sales.mv_orders"
 KNOWN = [VIEW, "workspace.sales.v_product_performance"]

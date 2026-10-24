@@ -1,8 +1,11 @@
-# LakehouseIQ
+# Plumbline
 
-Natural-language questions in, governed SQL and a verified answer out, on Databricks.
+**Natural-language BI that checks its own answers.** Ask in plain English; get governed SQL, the result, and
+an honest verdict on whether to trust it, on Databricks.
 
-LakehouseIQ turns plain-English business questions into Spark SQL over **Unity Catalog metric views**, so
+*A plumb line is the builder's tool for checking that something is true.*
+
+Plumbline turns plain-English business questions into Spark SQL over **Unity Catalog metric views**, so
 "revenue" or "headcount" means exactly one thing everywhere. Every query passes **code-verified guardrails**
 (a character-level SQL scanner, not prompt politeness), is scored by an **independent judge model** from a
 different model family than the generator, and the whole system is measured by an **eval harness benchmarked
@@ -31,7 +34,7 @@ question -> prompt (metric view context + live schema + enum values + saved corr
          -> verdict: GOOD / NEEDS REVIEW / RISKY / UNSCORED, plus a short summary
 ```
 
-* `app/lakehouseiq/pipeline.py` is the only orchestration; the Streamlit app and the eval harness both call it,
+* `app/plumbline/pipeline.py` is the only orchestration; the Streamlit app and the eval harness both call it,
   so the accuracy the eval reports is the accuracy users get.
 * The **semantic registry** (`app/semantic/*.yaml`, 10 metric views) is the single source of truth: notebook 04
   renders it into `CREATE VIEW ... WITH METRICS`, and the prompt builder renders the same files into model context.
@@ -65,13 +68,13 @@ databricks bundle validate -t dev -p free_edition
 databricks bundle deploy -t dev -p free_edition      # creates the jobs, the app and its service principal
 
 # 1. schemas, app tables, seed data, metric views, then grants for the app (a few minutes)
-databricks bundle run lakehouseiq_setup -t dev -p free_edition
+databricks bundle run plumbline_setup -t dev -p free_edition
 
 # 2. start the app
-databricks bundle run lakehouseiq -t dev -p free_edition
+databricks bundle run plumbline -t dev -p free_edition
 ```
 
-The setup job ends by granting the app's service principal its minimal access. `lakehouseiq_grant_app` re-applies
+The setup job ends by granting the app's service principal its minimal access. `plumbline_grant_app` re-applies
 just the grants (CI runs it after every deploy); on a workspace that hasn't been seeded yet it skips the missing
 objects instead of failing.
 
@@ -102,7 +105,7 @@ only (no instructions, sample questions or example SQL). Measured on 24 Oct 2026
 
 **Held-out v2** — 30 questions frozen before any tuning (`eval/holdout_v2.yaml`, hash-pinned by a test):
 
-| Per run (out of 30) | LakehouseIQ | Genie |
+| Per run (out of 30) | Plumbline | Genie |
 | --- | --- | --- |
 | Correct | 27 · 26 · 24 — **mean 85.6%** | 23 · 24 · 23 — **mean 77.8%** |
 | Wrong answer returned as if correct | 1 · 2 · 3 — **mean 6.7%** | 7 · 6 · 7 — **mean 22.2%** |
@@ -111,19 +114,19 @@ only (no instructions, sample questions or example SQL). Measured on 24 Oct 2026
 
 What the numbers support:
 
-* **Fewer silent errors.** Genie never declined to answer; about one answer in five was wrong. LakehouseIQ returned
+* **Fewer silent errors.** Genie never declined to answer; about one answer in five was wrong. Plumbline returned
   a wrong answer about one time in fifteen, and its other failures were visible errors rather than plausible
   numbers.
 * **About 3.3x faster** at the median, consistently across every split and run.
-* **A modest accuracy lead, not a decisive one.** The runs overlap (LakehouseIQ's worst run equals Genie's best),
-  and 30 questions is a small sample. LakehouseIQ also varies more run to run (24-27 vs 23-24).
+* **A modest accuracy lead, not a decisive one.** The runs overlap (Plumbline's worst run equals Genie's best),
+  and 30 questions is a small sample. Plumbline also varies more run to run (24-27 vs 23-24).
 
 Other splits, for completeness: on held-out v1 (10 questions, used once to choose the model) both systems averaged
-8/10. On the curated set LakehouseIQ scored 29/30 every run, but that set was used to tune prompts, so it is not a
+8/10. On the curated set Plumbline scored 29/30 every run, but that set was used to tune prompts, so it is not a
 fair comparison. Both systems failed the same question on every run: month-over-month growth across a year boundary.
 
 **A fairness bug we found and fixed.** In these runs Genie resolved "last N months" against the calendar date while
-LakehouseIQ's prompt fixes "today" at the data's as-of date, so three curated questions failed for Genie on every run
+Plumbline's prompt fixes "today" at the data's as-of date, so three curated questions failed for Genie on every run
 for reasons unrelated to answer quality. Held-out v2 contains no relative dates, so its results are unaffected. The
 harness now gives Genie the same as-of date and reports Genie call failures separately from wrong answers.
 
@@ -166,7 +169,7 @@ ruff check .
 pytest -q
 ```
 
-Repository layout: `app/` (Streamlit app and `lakehouseiq` package), `notebooks/` (Databricks source-format
+Repository layout: `app/` (Streamlit app and `plumbline` package), `notebooks/` (Databricks source-format
 notebooks 00-06), `eval/` (questions, comparison, runner), `tests/`, `docs/ARCHITECTURE.md`, `.github/workflows/`.
 CI runs the tests on every push; `deploy.yml` deploys on pushes to `main`; `setup-data.yml` is manual and gated
 by the `production` environment.

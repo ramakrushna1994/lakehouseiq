@@ -5,10 +5,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from lakehouseiq.config import Settings
-from lakehouseiq.pipeline import TIMING_KEYS, AnswerResult, answer_question
-from lakehouseiq.semantic import load_registry
-from lakehouseiq.warehouse import SchemaContext
+from plumbline.config import Settings
+from plumbline.pipeline import TIMING_KEYS, AnswerResult, answer_question
+from plumbline.semantic import load_registry
+from plumbline.warehouse import SchemaContext
 
 REGISTRY = load_registry(Path(__file__).resolve().parent.parent / "app" / "semantic")
 SETTINGS = Settings(catalog="cat", generator_endpoint="gen-ep", judge_endpoint="judge-ep", max_rows=500)
@@ -166,7 +166,7 @@ def test_repair_producing_blocked_sql_keeps_original_error():
 
 
 def test_repair_llm_failure_keeps_original_error():
-    from lakehouseiq.llm import LLMError
+    from plumbline.llm import LLMError
 
     r = run(FakeLLM(repair=LLMError("gen-ep", "down")), FakeWH((None, "boom")))
     assert r.error == "boom"
@@ -259,7 +259,7 @@ def test_unknown_table_is_risky():
 
 
 def test_generation_failure_surfaces_error():
-    from lakehouseiq.llm import LLMError
+    from plumbline.llm import LLMError
 
     r = run(FakeLLM(generate=LLMError("gen-ep", "429")), FakeWH(OK))
     assert r.verdict == "ERROR" and "generation failed" in r.error

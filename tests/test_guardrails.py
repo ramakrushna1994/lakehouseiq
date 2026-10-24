@@ -1,8 +1,8 @@
-"""Offline tests for lakehouseiq.guardrails (no warehouse, no model calls)."""
+"""Offline tests for plumbline.guardrails (no warehouse, no model calls)."""
 
 import pytest
 
-from lakehouseiq.guardrails import (
+from plumbline.guardrails import (
     blank_string_literals,
     ensure_limit,
     strip_sql_comments,

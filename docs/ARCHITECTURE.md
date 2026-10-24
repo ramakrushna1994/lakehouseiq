@@ -1,6 +1,6 @@
-# LakehouseIQ Architecture
+# Plumbline Architecture
 
-LakehouseIQ answers business questions in plain English by writing Spark SQL against a governed semantic
+Plumbline answers business questions in plain English by writing Spark SQL against a governed semantic
 layer, checking that SQL in code before it runs, and having an independent model grade it afterwards. An eval
 harness measures the whole system against Databricks Genie on the same questions and data.
 
@@ -62,7 +62,7 @@ verdict: GOOD · NEEDS REVIEW · RISKY · UNSCORED  (+ BLOCKED / ERROR)
 summary (only when rows came back) ──► UI, history table
 ```
 
-`app/lakehouseiq/pipeline.py` is the only orchestration. The Streamlit app and the eval harness both call
+`app/plumbline/pipeline.py` is the only orchestration. The Streamlit app and the eval harness both call
 `answer_question()`, so the eval measures exactly what users get.
 
 ## Semantic registry

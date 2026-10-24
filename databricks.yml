@@ -1,5 +1,5 @@
 bundle:
-  name: lakehouseiq
+  name: plumbline
 
 variables:
   catalog:
@@ -24,8 +24,8 @@ variables:
 
 resources:
   jobs:
-    lakehouseiq_setup:
-      name: lakehouseiq-setup
+    plumbline_setup:
+      name: plumbline-setup
       description: Create schemas and app tables, seed the three domains, define metric views.
       max_concurrent_runs: 1
       tasks:
@@ -72,10 +72,10 @@ resources:
             notebook_path: ./notebooks/05_grant_app.py
             base_parameters:
               catalog: ${var.catalog}
-              app_name: lakehouseiq
+              app_name: plumbline
 
-    lakehouseiq_grant_app:
-      name: lakehouseiq-grant-app
+    plumbline_grant_app:
+      name: plumbline-grant-app
       description: Grant the app's service principal read access to the data and write access to two app tables.
       max_concurrent_runs: 1
       tasks:
@@ -84,10 +84,10 @@ resources:
             notebook_path: ./notebooks/05_grant_app.py
             base_parameters:
               catalog: ${var.catalog}
-              app_name: lakehouseiq
+              app_name: plumbline
 
-    lakehouseiq_eval:
-      name: lakehouseiq-eval
+    plumbline_eval:
+      name: plumbline-eval
       description: Run the curated question set through the assistant (and Genie, if configured) and score it.
       max_concurrent_runs: 1
       tasks:
@@ -105,8 +105,8 @@ resources:
               limit: "0"
 
   apps:
-    lakehouseiq:
-      name: lakehouseiq
+    plumbline:
+      name: plumbline
       description: Natural-language BI assistant over Unity Catalog metric views
       source_code_path: ./app
       resources:
@@ -124,8 +124,8 @@ resources:
             permission: CAN_QUERY
 
   experiments:
-    lakehouseiq_traces:
-      name: /Users/${workspace.current_user.userName}/lakehouseiq-traces
+    plumbline_traces:
+      name: /Users/${workspace.current_user.userName}/plumbline-traces
 
 targets:
   dev:

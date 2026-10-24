@@ -1,4 +1,4 @@
-# LakehouseIQ - 100 complex test questions
+# Plumbline - 100 complex test questions
 # Covers: Sales, HR, Finance schemas + cross-schema joins
 
 # === SALES - Revenue & Orders ===

@@ -6,7 +6,7 @@ For every question the harness
 2. compares the two result sets with :func:`eval.compare.results_match` (values, not column names),
 3. records one row per question per system in ``app.eval_results`` and one MLflow run.
 
-The assistant is called through :func:`lakehouseiq.pipeline.answer_question`, the same function the
+The assistant is called through :func:`plumbline.pipeline.answer_question`, the same function the
 app uses, so the accuracy shown here is the accuracy users get. Genie's SQL is validated with the same
 guardrails and executed through the same runner, so both systems are judged on identical data.
 
@@ -148,7 +148,7 @@ def ask_genie(workspace_client, space_id: str, question: str, timeout_minutes: i
 
 
 def evaluate_genie(q: dict, expected, *, ask_fn, run_query: Runner, run_id: str, max_rows: int = 500) -> dict:
-    from lakehouseiq.guardrails import validate_sql
+    from plumbline.guardrails import validate_sql
 
     start = time.perf_counter()
     sql, err = ask_fn(q["question"])
@@ -322,7 +322,7 @@ def log_to_mlflow(rows: list[dict], metrics: dict, run_id: str, experiment_id: s
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run the LakehouseIQ eval harness.")
+    parser = argparse.ArgumentParser(description="Run the Plumbline eval harness.")
     parser.add_argument("--limit", type=int, default=None, help="only the first N questions")
     parser.add_argument("--run-id", default=None, help="reuse a run id to resume; default is a fresh timestamp")
     parser.add_argument("--genie-space-id", default=None, help="also evaluate this Genie space (or set GENIE_SPACE_ID)")
@@ -334,9 +334,9 @@ def main(argv: list[str] | None = None) -> int:
     import os
     from functools import partial
 
-    from lakehouseiq import semantic, warehouse
-    from lakehouseiq.config import Settings
-    from lakehouseiq.pipeline import answer_question
+    from plumbline import semantic, warehouse
+    from plumbline.config import Settings
+    from plumbline.pipeline import answer_question
 
     settings = Settings.from_env()
     warehouse.configure(settings)

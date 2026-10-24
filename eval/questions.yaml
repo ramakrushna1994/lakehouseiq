@@ -1,4 +1,4 @@
-# Evaluation questions for LakehouseIQ: 30 curated questions, 10 per domain.
+# Evaluation questions for Plumbline: 30 curated questions, 10 per domain.
 #
 # Reference SQL requires human review before results are published. The queries were written
 # against the metric views and tables defined in this repository and have not been checked by an

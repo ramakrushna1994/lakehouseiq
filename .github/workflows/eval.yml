@@ -42,14 +42,14 @@ jobs:
       - name: Resolve job and warehouse ids
         run: |
           summary=$(databricks bundle summary -t dev -o json)
-          echo "JOB_ID=$(jq -r '.resources.jobs.lakehouseiq_eval.id' <<<"$summary")" >> "$GITHUB_ENV"
+          echo "JOB_ID=$(jq -r '.resources.jobs.plumbline_eval.id' <<<"$summary")" >> "$GITHUB_ENV"
           wid=$(jq -r '.variables.warehouse_id.value // empty' <<<"$summary")
           if [ -z "$wid" ]; then  # lookup variables may not be resolved in the summary
             wid=$(databricks warehouses list -o json | jq -r '.[] | select(.name == "Serverless Starter Warehouse") | .id' | head -1)
           fi
           echo "WAREHOUSE_ID=$wid" >> "$GITHUB_ENV"
           echo "CATALOG=$(jq -r '.variables.catalog.value // "workspace"' <<<"$summary")" >> "$GITHUB_ENV"
-          test -n "$wid" && test "$(jq -r '.resources.jobs.lakehouseiq_eval.id' <<<"$summary")" != "null"
+          test -n "$wid" && test "$(jq -r '.resources.jobs.plumbline_eval.id' <<<"$summary")" != "null"
 
       - name: Run eval job (${{ inputs.generator_endpoint }} / judge ${{ inputs.judge_endpoint }})
         run: |

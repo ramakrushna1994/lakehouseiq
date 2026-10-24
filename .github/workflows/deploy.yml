@@ -37,5 +37,5 @@ jobs:
       - uses: databricks/setup-cli@main
       - run: databricks bundle validate -t dev
       - run: databricks bundle deploy -t dev
-      - run: databricks bundle run lakehouseiq -t dev
-      - run: databricks bundle run lakehouseiq_grant_app -t dev
+      - run: databricks bundle run plumbline -t dev
+      - run: databricks bundle run plumbline_grant_app -t dev

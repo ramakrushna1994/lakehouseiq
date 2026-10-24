@@ -1,8 +1,8 @@
-"""Offline tests for lakehouseiq.scoring."""
+"""Offline tests for plumbline.scoring."""
 
 import pytest
 
-from lakehouseiq.scoring import (
+from plumbline.scoring import (
     check_value_compliance,
     compute_schema_compliance,
     final_verdict,
@@ -10,7 +10,7 @@ from lakehouseiq.scoring import (
     parse_judge_response,
     unknown_measures,
 )
-from lakehouseiq.semantic import MetricView
+from plumbline.semantic import MetricView
 
 KNOWN = {"SALES.ORDERS.STATUS", "ORDERS.STATUS", "ORDERS", "SALES.ORDERS", "STATUS"}
 
@@ -59,7 +59,7 @@ class TestSchemaCompliance:
         assert compute_schema_compliance(sql, KNOWN)[0] == 10
 
     def test_metric_view_dimensions_and_measures_are_known(self):
-        from lakehouseiq.semantic import known_identifiers
+        from plumbline.semantic import known_identifiers
 
         ids = KNOWN | known_identifiers(REGISTRY, "workspace")
         sql = "SELECT mv_orders.order_month, MEASURE(order_revenue) FROM workspace.sales.mv_orders GROUP BY ALL"
@@ -237,13 +237,13 @@ class TestFinalVerdict:
 def _live_registry():
     from pathlib import Path
 
-    from lakehouseiq.semantic import load_registry
+    from plumbline.semantic import load_registry
 
     return load_registry(Path(__file__).resolve().parent.parent / "app" / "semantic")
 
 
 def test_measure_inside_case_is_flagged():
-    from lakehouseiq.scoring import metric_view_misuse
+    from plumbline.scoring import metric_view_misuse
 
     sql = ("SELECT dept_name, AVG(CASE WHEN review_period = '2026-Q1' THEN avg_rating END) AS q1_avg "
            "FROM workspace.hr.mv_performance GROUP BY dept_name")
@@ -251,7 +251,7 @@ def test_measure_inside_case_is_flagged():
 
 
 def test_measure_from_another_view_is_flagged_with_owner_hint():
-    from lakehouseiq.scoring import metric_view_misuse
+    from plumbline.scoring import metric_view_misuse
 
     sql = "SELECT category, MEASURE(return_count) / MEASURE(line_count) * 100 AS r FROM workspace.sales.mv_returns GROUP BY category"
     problems = metric_view_misuse(sql, _live_registry())
@@ -259,7 +259,7 @@ def test_measure_from_another_view_is_flagged_with_owner_hint():
 
 
 def test_sum_over_measures_is_flagged():
-    from lakehouseiq.scoring import metric_view_misuse
+    from plumbline.scoring import metric_view_misuse
 
     sql = "SELECT dept_name, SUM(total_overtime) / SUM(total_base) * 100 AS pct FROM workspace.hr.mv_payroll GROUP BY ALL"
     problems = metric_view_misuse(sql, _live_registry())
@@ -267,7 +267,7 @@ def test_sum_over_measures_is_flagged():
 
 
 def test_measure_alias_reuse_is_not_flagged():
-    from lakehouseiq.scoring import metric_view_misuse
+    from plumbline.scoring import metric_view_misuse
 
     sql = ("SELECT product_name, MEASURE(net_revenue) AS net_revenue FROM workspace.sales.mv_order_lines "
            "WHERE category = 'Electronics' GROUP BY ALL ORDER BY net_revenue DESC LIMIT 5")
@@ -275,7 +275,7 @@ def test_measure_alias_reuse_is_not_flagged():
 
 
 def test_measure_in_having_through_measure_is_clean():
-    from lakehouseiq.scoring import metric_view_misuse
+    from plumbline.scoring import metric_view_misuse
 
     sql = ("SELECT dept_name, MEASURE(actual_vs_budget_pct) AS pct FROM workspace.finance.mv_budget "
            "GROUP BY ALL HAVING MEASURE(actual_vs_budget_pct) > 10")

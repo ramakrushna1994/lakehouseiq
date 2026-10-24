@@ -1,6 +1,6 @@
 # Demo
 
-Screenshots and a recording of LakehouseIQ running on Databricks Free Edition. The live app needs a sign-in to
+Screenshots and a recording of Plumbline running on Databricks Free Edition. The live app needs a sign-in to
 the workspace it runs in, so these are the way to see it without one.
 
 | File | Shows |

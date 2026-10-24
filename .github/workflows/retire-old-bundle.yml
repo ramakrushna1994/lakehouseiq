@@ -1,0 +1,25 @@
+name: retire-old-bundle
+
+# One-off: removes the resources deployed under the project's previous bundle name ("lakehouseiq"):
+# its jobs, app, MLflow experiment and bundle files. Data tables are not bundle resources and are untouched.
+# Delete this workflow once it has run.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    environment: production   # destructive: requires manual approval
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c340199e74ff89152e50df39b09ae25f117fd0fa   # last commit deployed under the old bundle name
+      - uses: databricks/setup-cli@main
+      - name: Show what will be removed
+        run: databricks bundle summary -t dev
+      - name: Destroy the old bundle
+        run: databricks bundle destroy -t dev --auto-approve

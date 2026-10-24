@@ -1,9 +1,9 @@
-"""Offline tests for lakehouseiq.prompts."""
+"""Offline tests for plumbline.prompts."""
 
 import json
 import re
 
-from lakehouseiq import prompts
+from plumbline import prompts
 
 KW = dict(
     catalog="main",
@@ -112,13 +112,13 @@ def test_no_banned_dialect_in_prompts():
 def test_generation_prompt_forbids_unrequested_time_filters():
     import inspect
 
-    from lakehouseiq import prompts
+    from plumbline import prompts
 
     assert "add a time-period filter ONLY when the question names a period" in inspect.getsource(prompts)
 
 
 def test_budget_examples_include_one_without_time_filter():
-    from lakehouseiq.prompts import _examples
+    from plumbline.prompts import _examples
 
     shots = [blk for blk in _examples("cat", "2026-06-30").split("\n\n") if "mv_budget" in blk]
     assert len(shots) >= 2

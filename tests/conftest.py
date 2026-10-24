@@ -1,4 +1,4 @@
-"""Make ``app/`` (the lakehouseiq package) and the repo root (``eval``) importable."""
+"""Make ``app/`` (the plumbline package) and the repo root (``eval``) importable."""
 
 import sys
 from pathlib import Path

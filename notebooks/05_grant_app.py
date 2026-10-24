@@ -46,7 +46,7 @@ if __name__ == "__main__":
     from databricks.sdk import WorkspaceClient
 
     dbutils.widgets.text("catalog", "workspace")
-    dbutils.widgets.text("app_name", "lakehouseiq")
+    dbutils.widgets.text("app_name", "plumbline")
     catalog = dbutils.widgets.get("catalog")
     app_name = dbutils.widgets.get("app_name")
 

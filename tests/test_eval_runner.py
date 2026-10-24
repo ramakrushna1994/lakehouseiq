@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pandas as pd
 
 from eval import runner
-from lakehouseiq.pipeline import AnswerResult
+from plumbline.pipeline import AnswerResult
 
 
 def _q(i="t-01", order=False):

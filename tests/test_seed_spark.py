@@ -31,7 +31,7 @@ def spark(tmp_path_factory):
     from pyspark.sql import SparkSession
 
     s = (
-        SparkSession.builder.master("local[1]").appName("lakehouseiq-tests")
+        SparkSession.builder.master("local[1]").appName("plumbline-tests")
         .config("spark.ui.enabled", "false").config("spark.sql.shuffle.partitions", "4")
         .config("spark.sql.warehouse.dir", str(tmp_path_factory.mktemp("wh"))).getOrCreate()
     )

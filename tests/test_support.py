@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from lakehouseiq import llm, store, tracing, warehouse
-from lakehouseiq.config import Settings
+from plumbline import llm, store, tracing, warehouse
+from plumbline.config import Settings
 
 # ---- config ---------------------------------------------------------------- #
 

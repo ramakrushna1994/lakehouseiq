@@ -170,9 +170,9 @@ if __name__ == "__main__":
     if not semantic_dir:
         raise ValueError("pass semantic_dir (the job sets it to ${workspace.file_path}/app/semantic)")
 
-    # The registry module lives next to the YAML files: <app>/lakehouseiq/semantic.py
+    # The registry module lives next to the YAML files: <app>/plumbline/semantic.py
     sys.path.insert(0, os.path.dirname(os.path.abspath(semantic_dir)))
-    from lakehouseiq.semantic import fqn, load_registry, render_spec_yaml
+    from plumbline.semantic import fqn, load_registry, render_spec_yaml
 
     registry = load_registry(semantic_dir)
     print(f"{len(registry)} metric views found in {semantic_dir}")
