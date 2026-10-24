@@ -6,6 +6,7 @@ on:
     paths:
       - "app/**"
       - "notebooks/**"
+      - "eval/**"
       - "databricks.yml"
   workflow_dispatch:
 
