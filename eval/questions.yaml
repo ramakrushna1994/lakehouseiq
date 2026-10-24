@@ -250,6 +250,7 @@
 - id: finance-05
   domain: finance
   question: 'What is the outstanding invoice balance in each aging bucket?'
+  ignore_zero_rows: true  # a zero-balance 'Not outstanding' bucket is an acceptable extra row
   reference_sql: |
     SELECT aging_bucket, MEASURE(outstanding_balance) AS outstanding_balance
     FROM ${catalog}.finance.mv_invoices

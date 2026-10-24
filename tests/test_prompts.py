@@ -107,3 +107,11 @@ def test_no_banned_dialect_in_prompts():
     allp = gen() + prompts.build_judge_prompt("q", "s")
     for banned in ("DATEADD", "FETCH FIRST ", "CURRENT_DATE()"):
         assert banned not in allp.replace("FETCH FIRST.", "").replace("No TOP, no FETCH FIRST", "")
+
+
+def test_generation_prompt_forbids_unrequested_time_filters():
+    import inspect
+
+    from lakehouseiq import prompts
+
+    assert "add a time-period filter ONLY when the question names a period" in inspect.getsource(prompts)

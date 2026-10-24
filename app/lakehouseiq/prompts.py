@@ -141,6 +141,7 @@ Columns annotated "-- Values:" list the ONLY valid values for that column. Do NO
    {{"sql": "<YOUR SQL QUERY>", "view": "<FULLY_QUALIFIED_VIEW_NAME or null>"}}
 2. If a metric view or cross-fact view can answer the question, query it and set "view" to its fully-qualified name. Otherwise write SQL against the base tables and set "view" to null.
 3. ALWAYS write SQL that actually answers the question: apply the filters, ordering and row limits it asks for. "top 5 products" must include ORDER BY ... LIMIT 5.
+   Do NOT add filters the question does not ask for. In particular, add a time-period filter ONLY when the question names a period ("this year", "last 6 months", "in 2025", "year-to-date"); a question with no period covers all data.
 4. Use fully qualified names exactly as shown (catalog.schema.name).
 5. Do NOT invent tables, columns, dimensions, measures or values.
 6. SELECT statements only. No DDL or DML, and never touch the system, information_schema or app schemas.

@@ -114,3 +114,24 @@ def test_numpy_scalars_and_bools():
 
     assert results_match(df(v=np.array([1, 2], dtype="int64")), df(v=[1.0, 2.0]), True)[0]
     assert results_match(df(v=[True, False]), df(v=[1, 0]), True)[0]
+
+
+def test_ignore_zero_rows_accepts_extra_zero_bucket():
+    import pandas as pd
+
+    from eval.compare import results_match
+
+    expected = pd.DataFrame({"bucket": ["0-30", "31-60"], "bal": [100.0, 50.0]})
+    actual = pd.DataFrame({"bucket": ["0-30", "31-60", "Not outstanding"], "bal": [100.0, 50.0, 0.0]})
+    assert results_match(expected, actual, order_matters=False)[0] is False
+    assert results_match(expected, actual, order_matters=False, ignore_zero_rows=True)[0] is True
+
+
+def test_ignore_zero_rows_still_rejects_nonzero_extra_row():
+    import pandas as pd
+
+    from eval.compare import results_match
+
+    expected = pd.DataFrame({"bucket": ["0-30"], "bal": [100.0]})
+    actual = pd.DataFrame({"bucket": ["0-30", "Not outstanding"], "bal": [100.0, 7.0]})
+    assert results_match(expected, actual, order_matters=False, ignore_zero_rows=True)[0] is False

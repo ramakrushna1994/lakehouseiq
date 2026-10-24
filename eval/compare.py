@@ -84,16 +84,31 @@ def _rows_equal(exp_cols, act_cols, order_matters, rel_tol, round_dp) -> bool:
     )
 
 
+def _drop_zero_rows(df: pd.DataFrame) -> pd.DataFrame:
+    num = df.select_dtypes(include="number")
+    if num.shape[1] == 0:
+        return df
+    keep = ~(num.fillna(0).round(9) == 0).all(axis=1)
+    return df[keep].reset_index(drop=True)
+
+
 def results_match(
     df_expected: pd.DataFrame | None,
     df_actual: pd.DataFrame | None,
     order_matters: bool,
     rel_tol: float = 1e-6,
     round_dp: int = 2,
+    ignore_zero_rows: bool = False,
 ) -> tuple[bool, str]:
-    """Return ``(matches, reason)``. ``reason`` is ``"match"`` on success."""
+    """Return ``(matches, reason)``. ``reason`` is ``"match"`` on success.
+
+    ``ignore_zero_rows`` drops, from both sides, rows whose numeric values are all zero or null
+    (e.g. a "Not outstanding" bucket with a 0 balance), which carry no information for the question.
+    """
     if df_expected is None or df_actual is None:
         return False, "missing result set"
+    if ignore_zero_rows:
+        df_expected, df_actual = _drop_zero_rows(df_expected), _drop_zero_rows(df_actual)
     n_rows = len(df_expected)
     if len(df_actual) != n_rows:
         return False, f"row count differs: expected {n_rows}, got {len(df_actual)}"

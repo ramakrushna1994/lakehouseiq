@@ -103,7 +103,8 @@ def evaluate_assistant(q: dict, expected, *, answer_fn, run_id: str) -> dict:
         error=res.error or res.blocked_reason,
     )
     if res.df is not None and expected is not None:
-        row["exec_match"], reason = results_match(expected, res.df, bool(q.get("order_matters")))
+        row["exec_match"], reason = results_match(expected, res.df, bool(q.get("order_matters")),
+            ignore_zero_rows=bool(q.get("ignore_zero_rows")))
         if not row["exec_match"]:
             row["error"] = f"result mismatch: {reason}"
     return row
@@ -150,7 +151,8 @@ def evaluate_genie(q: dict, expected, *, ask_fn, run_query: Runner, run_id: str,
         return _row(run_id, "genie", q, generated_sql=sql, verdict="ERROR", latency_ms=latency, error=run_err)
     row = _row(run_id, "genie", q, generated_sql=sql, verdict="EXECUTED", latency_ms=latency)
     if expected is not None:
-        row["exec_match"], reason = results_match(expected, df, bool(q.get("order_matters")))
+        row["exec_match"], reason = results_match(expected, df, bool(q.get("order_matters")),
+            ignore_zero_rows=bool(q.get("ignore_zero_rows")))
         if not row["exec_match"]:
             row["error"] = f"result mismatch: {reason}"
     return row
