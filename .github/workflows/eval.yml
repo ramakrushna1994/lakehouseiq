@@ -1,0 +1,70 @@
+name: eval
+
+# Runs the eval job on Databricks with a chosen generator/judge pair, then posts per-split accuracy and the
+# failing questions as run annotations (visible on the run page and via the GitHub API).
+
+on:
+  workflow_dispatch:
+    inputs:
+      generator_endpoint:
+        description: Foundation Model endpoint that writes the SQL
+        default: databricks-meta-llama-3-3-70b-instruct
+        required: true
+      judge_endpoint:
+        description: Endpoint that scores the SQL (use a different model family from the generator)
+        default: databricks-gpt-oss-120b
+        required: true
+
+concurrency:
+  group: eval            # one eval at a time (Free Edition quotas); later dispatches queue
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      GENERATOR: ${{ inputs.generator_endpoint }}
+      JUDGE: ${{ inputs.judge_endpoint }}
+      EVAL_RUN_ID: gha-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+
+      - name: Resolve job and warehouse ids
+        run: |
+          summary=$(databricks bundle summary -t dev -o json)
+          echo "JOB_ID=$(jq -r '.resources.jobs.lakehouseiq_eval.id' <<<"$summary")" >> "$GITHUB_ENV"
+          wid=$(jq -r '.variables.warehouse_id.value // empty' <<<"$summary")
+          if [ -z "$wid" ]; then  # lookup variables may not be resolved in the summary
+            wid=$(databricks warehouses list -o json | jq -r '.[] | select(.name == "Serverless Starter Warehouse") | .id' | head -1)
+          fi
+          echo "WAREHOUSE_ID=$wid" >> "$GITHUB_ENV"
+          echo "CATALOG=$(jq -r '.variables.catalog.value // "workspace"' <<<"$summary")" >> "$GITHUB_ENV"
+          test -n "$wid" && test "$(jq -r '.resources.jobs.lakehouseiq_eval.id' <<<"$summary")" != "null"
+
+      - name: Run eval job (${{ inputs.generator_endpoint }} / judge ${{ inputs.judge_endpoint }})
+        run: |
+          jq -n --argjson job "$JOB_ID" --arg run "$EVAL_RUN_ID" --arg gen "$GENERATOR" --arg judge "$JUDGE" \
+            '{job_id: $job, notebook_params: {run_id: $run, generator_endpoint: $gen, judge_endpoint: $judge}}' > run.json
+          databricks jobs run-now --json @run.json --timeout 70m
+
+      - name: Report results as annotations
+        if: always()
+        run: |
+          sql() {
+            jq -n --arg w "$WAREHOUSE_ID" --arg s "$1" '{warehouse_id: $w, statement: $s, wait_timeout: "50s"}' > stmt.json
+            databricks api post /api/2.0/sql/statements --json @stmt.json
+          }
+          T="${CATALOG}.app.eval_results"
+          sql "SELECT system, CASE WHEN question_id LIKE 'holdout-%' THEN 'holdout' ELSE 'curated' END AS split,
+                      COUNT(*) AS n, SUM(CAST(exec_match AS INT)) AS correct,
+                      CAST(PERCENTILE(latency_ms, 0.5) AS BIGINT) AS p50_ms
+               FROM $T WHERE run_id = '$EVAL_RUN_ID' GROUP BY ALL ORDER BY 1, 2" \
+            | jq -r --arg g "$GENERATOR" --arg j "$JUDGE" \
+                '.result.data_array // [] | .[] | "::notice title=\(.[0]) \(.[1])::\(.[3])/\(.[2]) correct, p50 \(.[4]) ms (generator \($g), judge \($j))"'
+          sql "SELECT question_id, LEFT(COALESCE(error, ''), 300) FROM $T
+               WHERE run_id = '$EVAL_RUN_ID' AND system = 'assistant' AND NOT exec_match ORDER BY question_id" \
+            | jq -r '.result.data_array // [] | .[] | "::warning title=miss \(.[0])::\(.[1] | gsub("[\\r\\n]"; " "))"'
