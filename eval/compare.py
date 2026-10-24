@@ -11,12 +11,17 @@ from __future__ import annotations
 import datetime as _dt
 import itertools
 import math
+import re
 from decimal import Decimal
 
 import pandas as pd
 
 MAX_PERMUTED_COLUMNS = 6
 _MAX_ASSIGNMENTS = 720
+
+
+_MONTH_LABEL = re.compile(r"^\d{4}-\d{2}$")
+_MIDNIGHT = re.compile(r"^\d{4}-\d{2}-\d{2}[ T]00:00:00(\.0+)?$")
 
 
 def _norm(value, round_dp: int):
@@ -39,7 +44,12 @@ def _norm(value, round_dp: int):
         return value.date().isoformat() if value.time() == _dt.time(0) else value.isoformat(sep=" ")
     if isinstance(value, _dt.date):
         return value.isoformat()
-    return str(value).strip().casefold()
+    text = str(value).strip()
+    if _MONTH_LABEL.match(text):  # '2026-01' is the same month as 2026-01-01
+        return text + "-01"
+    if _MIDNIGHT.match(text):  # '2026-01-01 00:00:00' is a date
+        return text[:10]
+    return text.casefold()
 
 
 def _sort_key(v):

@@ -1,0 +1,186 @@
+# Held-out evaluation set.
+#
+# Rules for this file:
+#   * Never tune prompts, metric views or few-shot examples on these questions. They exist to give an
+#     accuracy number the system was not fitted to.
+#   * Each question states its own business definitions, so the reference answer is unambiguous.
+#   * Reference SQL targets base tables (these questions mostly need logic a single metric view can't
+#     express) and has been executed against the deterministic seed (as_of_date 2026-06-30).
+#   * Shared definitions: "net revenue" = SUM(order_items.line_total) over orders whose status is not
+#     'Cancelled'. "Today" is the as-of date, 2026-06-30.
+
+- id: holdout-01
+  domain: sales
+  question: >-
+    For each month from January to June 2026, what was net revenue (excluding cancelled orders) and its
+    month-over-month growth percentage? Growth for January is versus December 2025.
+  order_matters: true
+  reference_sql: |
+    WITH monthly AS (
+      SELECT date_trunc('MONTH', o.order_date) AS month, SUM(oi.line_total) AS net_revenue
+      FROM ${catalog}.sales.orders o
+      JOIN ${catalog}.sales.order_items oi ON oi.order_id = o.order_id
+      WHERE o.status <> 'Cancelled'
+      GROUP BY ALL
+    ), growth AS (
+      SELECT month, net_revenue,
+             ROUND((net_revenue - LAG(net_revenue) OVER (ORDER BY month)) * 100.0
+                   / LAG(net_revenue) OVER (ORDER BY month), 2) AS growth_pct
+      FROM monthly
+    )
+    SELECT month, net_revenue, growth_pct FROM growth
+    WHERE month BETWEEN DATE'2026-01-01' AND DATE'2026-06-01'
+    ORDER BY month
+
+- id: holdout-02
+  domain: sales
+  question: >-
+    What percentage of total net revenue comes from the top 20% of customers by net revenue? Count only
+    customers with at least one non-cancelled order, and round the 20% up to a whole number of customers.
+  order_matters: false
+  reference_sql: |
+    WITH cust AS (
+      SELECT o.customer_id, SUM(oi.line_total) AS rev
+      FROM ${catalog}.sales.orders o
+      JOIN ${catalog}.sales.order_items oi ON oi.order_id = o.order_id
+      WHERE o.status <> 'Cancelled'
+      GROUP BY ALL
+    ), ranked AS (
+      SELECT rev, ROW_NUMBER() OVER (ORDER BY rev DESC, customer_id) AS rn, COUNT(*) OVER () AS n FROM cust
+    )
+    SELECT ROUND(SUM(CASE WHEN rn <= CEIL(n * 0.2) THEN rev END) * 100.0 / SUM(rev), 2) AS top_20_pct_share
+    FROM ranked
+
+- id: holdout-03
+  domain: sales
+  question: >-
+    For each product category, what is the return rate, defined as the number of returns divided by the
+    number of order lines on non-cancelled orders, as a percentage?
+  order_matters: false
+  reference_sql: |
+    WITH lines AS (
+      SELECT p.category, COUNT(*) AS line_count
+      FROM ${catalog}.sales.order_items oi
+      JOIN ${catalog}.sales.orders o ON o.order_id = oi.order_id
+      JOIN ${catalog}.sales.products p ON p.product_id = oi.product_id
+      WHERE o.status <> 'Cancelled'
+      GROUP BY ALL
+    ), rets AS (
+      SELECT p.category, COUNT(*) AS return_count
+      FROM ${catalog}.sales.returns r
+      JOIN ${catalog}.sales.products p ON p.product_id = r.product_id
+      GROUP BY ALL
+    )
+    SELECT l.category, ROUND(COALESCE(r.return_count, 0) * 100.0 / l.line_count, 2) AS return_rate_pct
+    FROM lines l LEFT JOIN rets r ON r.category = l.category
+
+- id: holdout-04
+  domain: sales
+  question: >-
+    Which 5 customers have the highest net revenue among customers whose most recent non-cancelled order
+    was more than 180 days before 2026-06-30? Show customer id, net revenue and last order date.
+  order_matters: true
+  reference_sql: |
+    SELECT o.customer_id, SUM(oi.line_total) AS net_revenue, MAX(o.order_date) AS last_order_date
+    FROM ${catalog}.sales.orders o
+    JOIN ${catalog}.sales.order_items oi ON oi.order_id = o.order_id
+    WHERE o.status <> 'Cancelled'
+    GROUP BY o.customer_id
+    HAVING MAX(o.order_date) < date_sub(DATE'2026-06-30', 180)
+    ORDER BY net_revenue DESC
+    LIMIT 5
+
+- id: holdout-05
+  domain: sales
+  question: >-
+    Among customers with at least two non-cancelled orders, what is the average number of days between
+    their first and second order?
+  order_matters: false
+  reference_sql: |
+    WITH seq AS (
+      SELECT customer_id, order_date,
+             ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date, order_id) AS rn
+      FROM ${catalog}.sales.orders
+      WHERE status <> 'Cancelled'
+    )
+    SELECT ROUND(AVG(datediff(s2.order_date, s1.order_date)), 2) AS avg_days_first_to_second
+    FROM seq s1 JOIN seq s2 ON s2.customer_id = s1.customer_id AND s1.rn = 1 AND s2.rn = 2
+
+- id: holdout-06
+  domain: sales
+  question: >-
+    For each sales channel, what percentage of delivered orders arrived within 5 days of the order date?
+  order_matters: false
+  reference_sql: |
+    SELECT c.channel_name,
+           ROUND(AVG(CASE WHEN datediff(o.delivery_date, o.order_date) <= 5 THEN 1.0 ELSE 0.0 END) * 100, 2)
+             AS pct_within_5_days
+    FROM ${catalog}.sales.orders o
+    JOIN ${catalog}.sales.sales_channels c ON c.channel_id = o.channel_id
+    WHERE o.delivery_date IS NOT NULL
+    GROUP BY c.channel_name
+
+- id: holdout-07
+  domain: hr
+  question: >-
+    Which departments had a higher average performance rating in 2026-Q2 than in 2026-Q1? Show the
+    department, the Q1 average and the Q2 average.
+  order_matters: false
+  reference_sql: |
+    SELECT d.dept_name,
+           ROUND(AVG(CASE WHEN r.review_period = '2026-Q1' THEN r.rating END), 2) AS q1_avg_rating,
+           ROUND(AVG(CASE WHEN r.review_period = '2026-Q2' THEN r.rating END), 2) AS q2_avg_rating
+    FROM ${catalog}.hr.performance_reviews r
+    JOIN ${catalog}.hr.departments d ON d.dept_id = r.dept_id
+    WHERE r.review_period IN ('2026-Q1', '2026-Q2')
+    GROUP BY d.dept_name
+    HAVING AVG(CASE WHEN r.review_period = '2026-Q2' THEN r.rating END)
+         > AVG(CASE WHEN r.review_period = '2026-Q1' THEN r.rating END)
+
+- id: holdout-08
+  domain: hr
+  question: >-
+    For each department, what was total overtime pay as a percentage of total base salary paid in the
+    first half of 2026 (January to June pay periods)?
+  order_matters: false
+  reference_sql: |
+    SELECT d.dept_name, ROUND(SUM(p.overtime_pay) * 100.0 / SUM(p.base_salary), 2) AS overtime_pct_of_base
+    FROM ${catalog}.hr.payroll p
+    JOIN ${catalog}.hr.departments d ON d.dept_id = p.dept_id
+    WHERE p.pay_period BETWEEN DATE'2026-01-01' AND DATE'2026-06-30'
+    GROUP BY d.dept_name
+
+- id: holdout-09
+  domain: finance
+  question: >-
+    For each department, which vendor has the largest share of the department's approved expense spend?
+    Show the department, vendor, approved spend and share as a percentage.
+  order_matters: false
+  reference_sql: |
+    WITH v AS (
+      SELECT d.dept_name, e.vendor, SUM(e.amount) AS spend
+      FROM ${catalog}.finance.expenses e
+      JOIN ${catalog}.hr.departments d ON d.dept_id = e.dept_id
+      WHERE e.approval_status = 'Approved'
+      GROUP BY ALL
+    ), ranked AS (
+      SELECT dept_name, vendor, spend,
+             ROUND(spend * 100.0 / SUM(spend) OVER (PARTITION BY dept_name), 2) AS share_pct,
+             ROW_NUMBER() OVER (PARTITION BY dept_name ORDER BY spend DESC) AS rn
+      FROM v
+    )
+    SELECT dept_name, vendor, spend, share_pct FROM ranked WHERE rn = 1
+
+- id: holdout-10
+  domain: finance
+  question: >-
+    For each invoice month in 2025, what was the collection rate, defined as total paid divided by total
+    due as a percentage, excluding Void and Draft invoices?
+  order_matters: true
+  reference_sql: |
+    SELECT date_trunc('MONTH', invoice_date) AS invoice_month,
+           ROUND(SUM(paid_amount) * 100.0 / SUM(total_due), 2) AS collection_rate_pct
+    FROM ${catalog}.finance.invoices
+    WHERE invoice_status NOT IN ('Void', 'Draft') AND year(invoice_date) = 2025
+    GROUP BY ALL
+    ORDER BY invoice_month

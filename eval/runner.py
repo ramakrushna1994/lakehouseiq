@@ -37,6 +37,7 @@ from eval.compare import results_match
 logger = logging.getLogger(__name__)
 
 QUESTIONS_PATH = Path(__file__).resolve().parent / "questions.yaml"
+HOLDOUT_PATH = Path(__file__).resolve().parent / "holdout.yaml"  # never tuned on; see the file header
 TABLE_COLUMNS = (
     "run_id", "ts", "system", "question_id", "question", "generated_sql", "exec_match",
     "judge_relevance", "verdict", "latency_ms", "error",
@@ -209,20 +210,33 @@ def run_eval(
     return rows
 
 
+def _accuracy(rows: list[dict]) -> float:
+    return sum(r["exec_match"] for r in rows) / len(rows)
+
+
 def summarize(rows: list[dict]) -> dict:
-    """MLflow metrics: accuracy per system, blocked/repair rates, assistant p50 latency."""
+    """MLflow metrics: accuracy per system (overall, curated, holdout), blocked/repair rates, assistant p50 latency.
+
+    The held-out split (question ids starting with ``holdout-``) is the number to report: prompts and metric views
+    are never tuned on it. The curated split has been used for debugging and is optimistic by construction.
+    """
     a = [r for r in rows if r["system"] == "assistant"]
     g = [r for r in rows if r["system"] == "genie"]
     metrics: dict[str, float] = {}
+    for system, rs in (("assistant", a), ("genie", g)):
+        if not rs:
+            continue
+        metrics[f"exec_accuracy_{system}"] = _accuracy(rs)
+        for split in ("curated", "holdout"):
+            part = [r for r in rs if str(r.get("question_id", "")).startswith("holdout-") == (split == "holdout")]
+            if part:
+                metrics[f"exec_accuracy_{system}_{split}"] = _accuracy(part)
     if a:
-        metrics["exec_accuracy_assistant"] = sum(r["exec_match"] for r in a) / len(a)
         metrics["blocked_rate"] = sum(r["verdict"] == "BLOCKED" for r in a) / len(a)
         metrics["repair_rate"] = sum(bool(r.get("repaired")) for r in a) / len(a)
         lat = [r["latency_ms"] for r in a if r["latency_ms"] is not None]
         if lat:
             metrics["p50_latency_ms"] = float(statistics.median(lat))
-    if g:
-        metrics["exec_accuracy_genie"] = sum(r["exec_match"] for r in g) / len(g)
     return metrics
 
 
@@ -318,6 +332,8 @@ def main(argv: list[str] | None = None) -> int:
         ask = lambda question: ask_genie(w, genie_space, question)  # noqa: E731
 
     questions = load_questions(catalog=settings.catalog, as_of_date=schema_ctx.as_of_date)
+    if HOLDOUT_PATH.exists():
+        questions += load_questions(HOLDOUT_PATH, catalog=settings.catalog, as_of_date=schema_ctx.as_of_date)
     done = load_done(warehouse.run_query, settings.catalog, run_id)
     rows = run_eval(
         questions,

@@ -123,3 +123,25 @@ def test_run_id_validation():
 
     with pytest.raises(ValueError):
         runner._check_run_id("a' OR '1'='1")
+
+
+def test_summarize_reports_holdout_separately():
+    from eval.runner import summarize
+
+    rows = [
+        {"system": "assistant", "question_id": "sales-01", "exec_match": True, "verdict": "GOOD", "latency_ms": 10},
+        {"system": "assistant", "question_id": "holdout-01", "exec_match": False, "verdict": "GOOD", "latency_ms": 20},
+        {"system": "assistant", "question_id": "holdout-02", "exec_match": True, "verdict": "GOOD", "latency_ms": 30},
+    ]
+    m = summarize(rows)
+    assert m["exec_accuracy_assistant_curated"] == 1.0
+    assert m["exec_accuracy_assistant_holdout"] == 0.5
+    assert abs(m["exec_accuracy_assistant"] - 2 / 3) < 1e-9
+
+
+def test_holdout_file_loads_and_substitutes_catalog():
+    from eval.runner import HOLDOUT_PATH, load_questions
+
+    qs = load_questions(HOLDOUT_PATH, catalog="cat_x")
+    assert len(qs) == 10 and all(q["id"].startswith("holdout-") for q in qs)
+    assert all("${catalog}" not in q["reference_sql"] and "cat_x." in q["reference_sql"] for q in qs)

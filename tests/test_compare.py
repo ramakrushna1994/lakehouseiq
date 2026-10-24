@@ -135,3 +135,14 @@ def test_ignore_zero_rows_still_rejects_nonzero_extra_row():
     expected = pd.DataFrame({"bucket": ["0-30"], "bal": [100.0]})
     actual = pd.DataFrame({"bucket": ["0-30", "Not outstanding"], "bal": [100.0, 7.0]})
     assert results_match(expected, actual, order_matters=False, ignore_zero_rows=True)[0] is False
+
+
+def test_month_label_equals_first_of_month_timestamp():
+    import pandas as pd
+
+    from eval.compare import results_match
+
+    expected = pd.DataFrame({"m": pd.to_datetime(["2026-01-01", "2026-02-01"]), "v": [1.0, 2.0]})
+    for actual_month in (["2026-01", "2026-02"], ["2026-01-01", "2026-02-01"], ["2026-01-01 00:00:00", "2026-02-01 00:00:00"]):
+        actual = pd.DataFrame({"m": actual_month, "v": [1.0, 2.0]})
+        assert results_match(expected, actual, order_matters=True)[0], actual_month

@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # 06 - Evaluation
 # MAGIC
-# MAGIC Runs the 30 curated questions in `eval/questions.yaml` through the assistant (and through a Genie space when
+# MAGIC Runs the 30 curated questions in `eval/questions.yaml` and the 10 held-out questions in `eval/holdout.yaml` through the assistant (and through a Genie space when
 # MAGIC `genie_space_id` is set), executes each system's SQL on the SQL warehouse, and compares the **result sets**
 # MAGIC against the reference SQL. Rows go to `<catalog>.app.eval_results`; metrics and the results table go to an
 # MAGIC MLflow run.
