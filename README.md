@@ -10,6 +10,15 @@ against Databricks Genie** on the same questions and the same data (see [Benchma
 
 Built for Databricks Free Edition: serverless compute only, one SQL warehouse, Foundation Model APIs.
 
+## Demo
+
+| Answer | Generated SQL (follow-up) | Quality verdict |
+| --- | --- | --- |
+| ![Answer](demo/01-answer.png) | ![SQL](demo/02-sql-follow-up.png) | ![Quality](demo/03-quality.png) |
+
+More in [`demo/`](demo/). The live app runs on Databricks Free Edition behind a workspace sign-in; it can be started
+on request for a walkthrough.
+
 ## How it works
 
 ```
