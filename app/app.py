@@ -18,6 +18,12 @@ from lakehouseiq.parsing import format_sql
 from lakehouseiq.pipeline import AnswerResult, answer_question
 from lakehouseiq.semantic import load_registry
 
+
+def md_safe(text) -> str:
+    """Escape ``$`` so Streamlit markdown doesn't render text between two dollar amounts as a LaTeX formula."""
+    return str(text).replace("$", "\\$")
+
+
 SEMANTIC_DIR = Path(__file__).resolve().parent / "semantic"
 COLORS = ["#2F80ED", "#F2994A", "#27AE60", "#EB5757", "#9B51E0", "#00A3A3"]
 SCHEMA_ICONS = {"sales": "📈", "hr": "👥", "finance": "💰"}
@@ -193,10 +199,10 @@ def render_quality(res: AnswerResult) -> None:
     if s.get("bad_values"):
         st.warning("Unrecognised filter values: " + ", ".join(repr(v) for v in s["bad_values"][:5]))
     with st.expander("Score details"):
-        st.markdown(f"- **Relevance:** {s.get('relevance_reason')}")
-        st.markdown(f"- **Schema fit:** {s.get('schema_reason')}")
-        st.markdown(f"- **SQL quality:** {s.get('sql_quality_reason')}")
-        st.markdown(f"- **Value check:** {s.get('value_reason')}")
+        st.markdown(f"- **Relevance:** {md_safe(s.get('relevance_reason'))}")
+        st.markdown(f"- **Schema fit:** {md_safe(s.get('schema_reason'))}")
+        st.markdown(f"- **SQL quality:** {md_safe(s.get('sql_quality_reason'))}")
+        st.markdown(f"- **Value check:** {md_safe(s.get('value_reason'))}")
 
 
 def render_trace(res: AnswerResult) -> None:
@@ -242,7 +248,7 @@ def render_result(res: AnswerResult, key: str, animate: bool = False) -> None:
     tabs = dict(zip(names, st.tabs(names), strict=True))
     if has_data:
         with tabs["Data"]:
-            st.dataframe(df, width="stretch", height=min(len(df) * 38 + 50, 500))
+            st.dataframe(df, width="stretch", height=min((len(df) + 1) * 35 + 3, 500))
             if df.attrs.get("truncated"):
                 st.caption(f"Showing the first {len(df)} rows; add filters to narrow the result.")
         with tabs["Chart"]:
@@ -266,8 +272,8 @@ def render_result(res: AnswerResult, key: str, animate: bool = False) -> None:
         box = st.empty()
         if animate:
             for i in range(0, len(res.summary), 40):
-                box.markdown(res.summary[: i + 40])
-        box.markdown(res.summary)
+                box.markdown(md_safe(res.summary[: i + 40]))
+        box.markdown(md_safe(res.summary))
     if res.sql and not res.blocked_reason:
         render_report_mistake(res, key)
 
