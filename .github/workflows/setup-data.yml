@@ -1,0 +1,21 @@
+name: setup-data
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: setup-data
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - run: databricks bundle deploy -t dev
+      - run: databricks bundle run lakehouseiq_setup -t dev

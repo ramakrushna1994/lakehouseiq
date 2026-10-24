@@ -1,0 +1,48 @@
+name: mv_inventory
+schema: sales
+description: >-
+  Stock levels by product, category, store and region from weekly inventory snapshots.
+  Quantities are point-in-time: filter snapshot_date to a single date (usually the latest)
+  before summing, otherwise quantities are added across snapshots.
+spec:
+  version: 1.1
+  source: ${catalog}.sales.inventory
+  joins:
+    - name: product
+      source: ${catalog}.sales.products
+      'on': source.product_id = product.product_id
+    - name: store
+      source: ${catalog}.sales.stores
+      'on': source.store_id = store.store_id
+  dimensions:
+    - name: snapshot_date
+      expr: snapshot_date
+      comment: Date of the weekly inventory snapshot
+    - name: product_name
+      expr: product.product_name
+      comment: Product name
+    - name: category
+      expr: product.category
+      comment: Product category
+    - name: store_name
+      expr: store.store_name
+      comment: Store holding the stock
+    - name: store_region
+      expr: store.region
+      comment: Region of the store
+    - name: stock_status
+      expr: CASE WHEN quantity_on_hand <= reorder_point THEN 'Below Reorder Point' ELSE 'OK' END
+      comment: Below Reorder Point when quantity on hand is at or under the reorder point, otherwise OK
+  measures:
+    - name: qty_on_hand
+      expr: SUM(quantity_on_hand)
+      comment: Units physically on hand (filter to one snapshot_date)
+    - name: qty_reserved
+      expr: SUM(quantity_reserved)
+      comment: Units reserved for open orders
+    - name: qty_available
+      expr: SUM(quantity_on_hand - quantity_reserved)
+      comment: Units on hand minus units reserved
+    - name: items_below_reorder
+      expr: COUNT(CASE WHEN quantity_on_hand <= reorder_point THEN 1 END)
+      comment: Product-store rows at or below the reorder point

@@ -1,0 +1,55 @@
+name: mv_budget
+schema: finance
+description: >-
+  Budget versus actual spend and variance by year, month, department, GL account, account type
+  and account category. Variance is actual minus budget, so positive means over budget.
+spec:
+  version: 1.1
+  source: ${catalog}.finance.budget_lines
+  joins:
+    - name: department
+      source: ${catalog}.hr.departments
+      'on': source.dept_id = department.dept_id
+    - name: account
+      source: ${catalog}.finance.gl_accounts
+      'on': source.account_id = account.account_id
+  dimensions:
+    - name: budget_year
+      expr: budget_year
+      comment: Fiscal (calendar) year of the budget line
+    - name: budget_month
+      expr: budget_month
+      comment: Month number 1-12
+    - name: budget_period
+      expr: make_date(budget_year, budget_month, 1)
+      comment: First day of the budget month
+    - name: dept_name
+      expr: department.dept_name
+      comment: Department that owns the budget
+    - name: account_name
+      expr: account.account_name
+      comment: General ledger account name
+    - name: account_type
+      expr: account.account_type
+      comment: Account type (Expense, Revenue, Asset, Liability)
+    - name: account_category
+      expr: account.account_category
+      comment: Account category such as Payroll, Technology, Marketing
+  measures:
+    - name: budget_amount
+      expr: SUM(budget_amount)
+      comment: Original budget in USD
+      synonyms: [budget, planned spend]
+    - name: revised_budget
+      expr: SUM(revised_amount)
+      comment: Revised budget in USD
+    - name: actual_amount
+      expr: SUM(actual_amount)
+      comment: Actual spend in USD
+      synonyms: [actuals, spend]
+    - name: variance
+      expr: SUM(actual_amount) - SUM(budget_amount)
+      comment: Actual minus budget; positive means over budget
+    - name: actual_vs_budget_pct
+      expr: MEASURE(variance) * 100.0 / NULLIF(MEASURE(budget_amount), 0)
+      comment: Variance as a percent of budget (0-100 scale); above 10 means more than 10 percent over budget

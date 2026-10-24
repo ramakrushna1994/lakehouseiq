@@ -1,0 +1,81 @@
+name: mv_orders
+schema: sales
+description: >-
+  Order counts, average order value, order revenue, discounts and tax by month, customer
+  region/segment, store, channel, payment method and promo code. Excludes cancelled orders.
+spec:
+  version: 1.1
+  source: ${catalog}.sales.orders
+  filter: status <> 'Cancelled'
+  joins:
+    - name: customer
+      source: ${catalog}.sales.customers
+      'on': source.customer_id = customer.customer_id
+    - name: store
+      source: ${catalog}.sales.stores
+      'on': source.store_id = store.store_id
+    - name: channel
+      source: ${catalog}.sales.sales_channels
+      'on': source.channel_id = channel.channel_id
+    - name: promo
+      source: ${catalog}.sales.promotions
+      'on': source.promo_id = promo.promo_id
+  dimensions:
+    - name: order_date
+      expr: order_date
+      comment: Date the order was placed
+    - name: order_month
+      expr: date_trunc('MONTH', order_date)
+      comment: First day of the order month
+    - name: order_year
+      expr: year(order_date)
+      comment: Calendar year of the order
+    - name: customer_region
+      expr: customer.region
+      comment: Sales region of the customer (North, South, East, West)
+    - name: customer_segment
+      expr: customer.segment
+      comment: Customer segment (Enterprise, Mid-Market, SMB)
+    - name: store_name
+      expr: store.store_name
+      comment: Store that fulfilled the order
+    - name: store_region
+      expr: store.region
+      comment: Region of the store (East, Central, South, West)
+    - name: channel_name
+      expr: channel.channel_name
+      comment: Sales channel name such as Website, Mobile App, In-Store
+    - name: channel_type
+      expr: channel.channel_type
+      comment: Channel type (Online, Retail, Wholesale, Partner)
+    - name: payment_method
+      expr: payment_method
+      comment: How the customer paid
+    - name: status
+      expr: status
+      comment: Order status (Completed, Shipped, Processing); cancelled orders are excluded from this view
+    - name: promo_code
+      expr: promo.promo_code
+      comment: Promotion code applied to the order, null when no promotion was used
+  measures:
+    - name: total_orders
+      expr: COUNT(DISTINCT order_id)
+      comment: Number of non-cancelled orders
+      synonyms: [order count, number of orders]
+    - name: unique_customers
+      expr: COUNT(DISTINCT customer_id)
+      comment: Distinct customers who placed a non-cancelled order
+    - name: order_revenue
+      expr: SUM(total_amount)
+      comment: Sum of order totals (subtotal minus discount plus tax) for non-cancelled orders
+      synonyms: [sales, revenue including tax]
+    - name: avg_order_value
+      expr: AVG(total_amount)
+      comment: Average order total
+      synonyms: [AOV]
+    - name: total_discounts
+      expr: SUM(discount_amount)
+      comment: Total order-level promotion discounts
+    - name: total_tax
+      expr: SUM(tax_amount)
+      comment: Total sales tax charged

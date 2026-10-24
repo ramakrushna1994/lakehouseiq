@@ -1,0 +1,38 @@
+name: mv_performance
+schema: hr
+description: >-
+  Performance review ratings and goal attainment by review period, review year and department,
+  including counts of high and low performers.
+spec:
+  version: 1.1
+  source: ${catalog}.hr.performance_reviews
+  joins:
+    - name: department
+      source: ${catalog}.hr.departments
+      'on': source.dept_id = department.dept_id
+  dimensions:
+    - name: review_period
+      expr: review_period
+      comment: Quarter label such as 2026-Q1
+    - name: review_year
+      expr: year(review_date)
+      comment: Calendar year of the review
+    - name: dept_name
+      expr: department.dept_name
+      comment: Department of the employee
+  measures:
+    - name: employees_reviewed
+      expr: COUNT(DISTINCT emp_id)
+      comment: Distinct employees reviewed
+    - name: avg_rating
+      expr: AVG(rating)
+      comment: Average rating on a 1.0 to 5.0 scale
+    - name: avg_goals_met_pct
+      expr: AVG(goals_met_pct)
+      comment: Average percent of goals met (0-100)
+    - name: high_performers
+      expr: COUNT(DISTINCT CASE WHEN rating >= 4.0 THEN emp_id END)
+      comment: Distinct employees with a rating of 4.0 or higher
+    - name: low_performers
+      expr: COUNT(DISTINCT CASE WHEN rating < 2.5 THEN emp_id END)
+      comment: Distinct employees with a rating below 2.5

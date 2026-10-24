@@ -1,0 +1,45 @@
+name: mv_invoices
+schema: finance
+description: >-
+  Invoice volume, amounts billed and paid, outstanding balance and days-to-pay by invoice month,
+  year, status and aging bucket. Aging is measured against the data's as-of date, not the
+  calendar date. Outstanding means status Sent or Overdue.
+spec:
+  version: 1.1
+  source: ${catalog}.finance.invoices
+  dimensions:
+    - name: invoice_month
+      expr: date_trunc('MONTH', invoice_date)
+      comment: First day of the invoice month
+    - name: invoice_year
+      expr: year(invoice_date)
+      comment: Calendar year of the invoice
+    - name: invoice_status
+      expr: invoice_status
+      comment: Draft, Sent, Paid, Overdue or Void
+    - name: aging_bucket
+      expr: >-
+        CASE
+          WHEN invoice_status NOT IN ('Sent', 'Overdue') THEN 'Not outstanding'
+          WHEN datediff(DATE'${as_of_date}', due_date) <= 30 THEN '0-30'
+          WHEN datediff(DATE'${as_of_date}', due_date) <= 60 THEN '31-60'
+          WHEN datediff(DATE'${as_of_date}', due_date) <= 90 THEN '61-90'
+          ELSE '90+'
+        END
+      comment: Days past due as of the data's reference date for outstanding invoices (0-30 includes not yet due)
+  measures:
+    - name: invoice_count
+      expr: COUNT(1)
+      comment: Number of invoices
+    - name: total_due
+      expr: SUM(total_due)
+      comment: Invoice amount plus tax in USD
+    - name: total_paid
+      expr: SUM(paid_amount)
+      comment: Amount received in USD
+    - name: outstanding_balance
+      expr: SUM(CASE WHEN invoice_status IN ('Sent', 'Overdue') THEN total_due - paid_amount ELSE 0 END)
+      comment: Unpaid balance on invoices with status Sent or Overdue
+    - name: avg_days_to_pay
+      expr: AVG(CASE WHEN payment_date IS NOT NULL THEN datediff(payment_date, invoice_date) END)
+      comment: Average days between invoice date and payment date for paid invoices

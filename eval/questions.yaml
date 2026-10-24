@@ -1,0 +1,307 @@
+# Evaluation questions for LakehouseIQ: 30 curated questions, 10 per domain.
+#
+# Reference SQL requires human review before results are published. The queries were written
+# against the metric views and tables defined in this repository and have not been checked by an
+# independent analyst; treat any accuracy number as provisional until they are.
+#
+# Placeholders: ${catalog} and ${as_of_date} are substituted by eval/runner.py (the same two values
+# the notebooks use). order_matters is true only when the question defines an order (top-N, trends).
+
+- id: sales-01
+  domain: sales
+  question: 'Top 5 products by net revenue?'
+  reference_sql: |
+    SELECT product_name, MEASURE(net_revenue) AS net_revenue
+    FROM ${catalog}.sales.mv_order_lines
+    GROUP BY ALL
+    ORDER BY net_revenue DESC
+    LIMIT 5
+  order_matters: true
+
+- id: sales-02
+  domain: sales
+  question: 'What is net revenue by month for the last 6 months?'
+  reference_sql: |
+    SELECT order_month, MEASURE(net_revenue) AS net_revenue
+    FROM ${catalog}.sales.mv_order_lines
+    WHERE order_month >= add_months(date_trunc('MONTH', DATE'${as_of_date}'), -5)
+    GROUP BY ALL
+    ORDER BY order_month
+  order_matters: true
+
+- id: sales-03
+  domain: sales
+  question: 'How many orders (excluding cancelled ones) did each customer segment place?'
+  reference_sql: |
+    SELECT customer_segment, MEASURE(total_orders) AS total_orders
+    FROM ${catalog}.sales.mv_orders
+    GROUP BY ALL
+  order_matters: false
+
+- id: sales-04
+  domain: sales
+  question: 'Which sales channel has the highest order volume?'
+  reference_sql: |
+    SELECT channel_name, MEASURE(total_orders) AS total_orders
+    FROM ${catalog}.sales.mv_orders
+    GROUP BY ALL
+    ORDER BY total_orders DESC
+    LIMIT 1
+  order_matters: true
+
+- id: sales-05
+  domain: sales
+  question: 'What is the average order value by payment method?'
+  reference_sql: |
+    SELECT payment_method, MEASURE(avg_order_value) AS avg_order_value
+    FROM ${catalog}.sales.mv_orders
+    GROUP BY ALL
+  order_matters: false
+
+- id: sales-06
+  domain: sales
+  question: 'Which 5 products with at least 20 units sold have the highest return rate?'
+  reference_sql: |
+    SELECT product_name, return_rate_pct
+    FROM ${catalog}.sales.v_product_performance
+    WHERE total_units_sold >= 20
+    ORDER BY return_rate_pct DESC
+    LIMIT 5
+  order_matters: true
+
+- id: sales-07
+  domain: sales
+  question: 'What is the total refund amount by return reason?'
+  reference_sql: |
+    SELECT return_reason, MEASURE(total_refunds) AS total_refunds
+    FROM ${catalog}.sales.mv_returns
+    GROUP BY ALL
+  order_matters: false
+
+- id: sales-08
+  domain: sales
+  question: 'Who are the top 5 customers by lifetime value?'
+  reference_sql: |
+    SELECT customer_name, lifetime_value
+    FROM ${catalog}.sales.v_customer_segments
+    ORDER BY lifetime_value DESC
+    LIMIT 5
+  order_matters: true
+
+- id: sales-09
+  domain: sales
+  question: 'Which 3 stores have the highest order revenue?'
+  reference_sql: |
+    SELECT store_name, MEASURE(order_revenue) AS order_revenue
+    FROM ${catalog}.sales.mv_orders
+    GROUP BY ALL
+    ORDER BY order_revenue DESC
+    LIMIT 3
+  order_matters: true
+
+- id: sales-10
+  domain: sales
+  question: 'How many product and store combinations are below their reorder point in the latest inventory snapshot?'
+  reference_sql: |
+    SELECT MEASURE(items_below_reorder) AS items_below_reorder
+    FROM ${catalog}.sales.mv_inventory
+    WHERE snapshot_date = DATE'${as_of_date}'
+  order_matters: false
+
+- id: hr-01
+  domain: hr
+  question: 'What is the average salary of active employees by department?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(avg_salary) AS avg_salary
+    FROM ${catalog}.hr.mv_employees
+    GROUP BY ALL
+  order_matters: false
+
+- id: hr-02
+  domain: hr
+  question: 'How many active employees does each department have?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(active_headcount) AS active_headcount
+    FROM ${catalog}.hr.mv_employees
+    GROUP BY ALL
+  order_matters: false
+
+- id: hr-03
+  domain: hr
+  question: 'Which department had the highest total net pay over the last 12 months?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(total_net_pay) AS total_net_pay
+    FROM ${catalog}.hr.mv_payroll
+    WHERE pay_month >= add_months(date_trunc('MONTH', DATE'${as_of_date}'), -11)
+    GROUP BY ALL
+    ORDER BY total_net_pay DESC
+    LIMIT 1
+  order_matters: true
+
+- id: hr-04
+  domain: hr
+  question: 'What is total net pay by month for the last 6 months?'
+  reference_sql: |
+    SELECT pay_month, MEASURE(total_net_pay) AS total_net_pay
+    FROM ${catalog}.hr.mv_payroll
+    WHERE pay_month >= add_months(date_trunc('MONTH', DATE'${as_of_date}'), -5)
+    GROUP BY ALL
+    ORDER BY pay_month
+  order_matters: true
+
+- id: hr-05
+  domain: hr
+  question: 'What is the total overtime pay by department?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(total_overtime) AS total_overtime
+    FROM ${catalog}.hr.mv_payroll
+    GROUP BY ALL
+  order_matters: false
+
+- id: hr-06
+  domain: hr
+  question: 'What is the average performance rating by department?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(avg_rating) AS avg_rating
+    FROM ${catalog}.hr.mv_performance
+    GROUP BY ALL
+  order_matters: false
+
+- id: hr-07
+  domain: hr
+  question: 'How many high performers (rating of 4.0 or more) does each department have this year?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(high_performers) AS high_performers
+    FROM ${catalog}.hr.mv_performance
+    WHERE review_year = year(DATE'${as_of_date}')
+    GROUP BY ALL
+  order_matters: false
+
+- id: hr-08
+  domain: hr
+  question: 'Who are the 5 highest-paid active employees?'
+  reference_sql: |
+    SELECT first_name, last_name, salary
+    FROM ${catalog}.hr.employees
+    WHERE status = 'Active'
+    ORDER BY salary DESC
+    LIMIT 5
+  order_matters: true
+
+- id: hr-09
+  domain: hr
+  question: 'How many employees were hired in each year?'
+  reference_sql: |
+    SELECT hire_year, MEASURE(headcount) AS headcount
+    FROM ${catalog}.hr.mv_employees
+    GROUP BY ALL
+  order_matters: false
+
+- id: hr-10
+  domain: hr
+  question: 'How many active employees are at each job level?'
+  reference_sql: |
+    SELECT job_level, MEASURE(active_headcount) AS active_headcount
+    FROM ${catalog}.hr.mv_employees
+    GROUP BY ALL
+  order_matters: false
+
+- id: finance-01
+  domain: finance
+  question: 'Which departments are more than 10% over budget year-to-date?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(actual_vs_budget_pct) AS pct_over
+    FROM ${catalog}.finance.mv_budget
+    WHERE budget_year = year(DATE'${as_of_date}') AND budget_month <= month(DATE'${as_of_date}')
+    GROUP BY ALL
+    HAVING MEASURE(actual_vs_budget_pct) > 10
+  order_matters: false
+
+- id: finance-02
+  domain: finance
+  question: 'What are the budget and actual spend by department this year?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(budget_amount) AS budget_amount, MEASURE(actual_amount) AS actual_amount
+    FROM ${catalog}.finance.mv_budget
+    WHERE budget_year = year(DATE'${as_of_date}')
+    GROUP BY ALL
+  order_matters: false
+
+- id: finance-03
+  domain: finance
+  question: 'What are the top 5 expense categories by total amount?'
+  reference_sql: |
+    SELECT category, MEASURE(total_amount) AS total_amount
+    FROM ${catalog}.finance.mv_expenses
+    GROUP BY ALL
+    ORDER BY total_amount DESC
+    LIMIT 5
+  order_matters: true
+
+- id: finance-04
+  domain: finance
+  question: 'What is the expense approval rate by category?'
+  reference_sql: |
+    SELECT category, MEASURE(approval_rate_pct) AS approval_rate_pct
+    FROM ${catalog}.finance.mv_expenses
+    GROUP BY ALL
+  order_matters: false
+
+- id: finance-05
+  domain: finance
+  question: 'What is the outstanding invoice balance in each aging bucket?'
+  reference_sql: |
+    SELECT aging_bucket, MEASURE(outstanding_balance) AS outstanding_balance
+    FROM ${catalog}.finance.mv_invoices
+    WHERE aging_bucket <> 'Not outstanding'
+    GROUP BY ALL
+  order_matters: false
+
+- id: finance-06
+  domain: finance
+  question: 'How many invoices are there in each status?'
+  reference_sql: |
+    SELECT invoice_status, MEASURE(invoice_count) AS invoice_count
+    FROM ${catalog}.finance.mv_invoices
+    GROUP BY ALL
+  order_matters: false
+
+- id: finance-07
+  domain: finance
+  question: 'What is the average number of days to pay an invoice, by invoice year?'
+  reference_sql: |
+    SELECT invoice_year, MEASURE(avg_days_to_pay) AS avg_days_to_pay
+    FROM ${catalog}.finance.mv_invoices
+    GROUP BY ALL
+  order_matters: false
+
+- id: finance-08
+  domain: finance
+  question: 'Who are the top 5 vendors by total expense amount?'
+  reference_sql: |
+    SELECT vendor, MEASURE(total_amount) AS total_amount
+    FROM ${catalog}.finance.mv_expenses
+    GROUP BY ALL
+    ORDER BY total_amount DESC
+    LIMIT 5
+  order_matters: true
+
+- id: finance-09
+  domain: finance
+  question: 'Which 3 account categories have the largest budget variance (actual minus budget)?'
+  reference_sql: |
+    SELECT account_category, MEASURE(variance) AS variance
+    FROM ${catalog}.finance.mv_budget
+    GROUP BY ALL
+    ORDER BY variance DESC
+    LIMIT 3
+  order_matters: true
+
+- id: finance-10
+  domain: finance
+  question: 'How many expense claims were rejected in each department?'
+  reference_sql: |
+    SELECT dept_name, MEASURE(rejected_count) AS rejected_count
+    FROM ${catalog}.finance.mv_expenses
+    GROUP BY ALL
+  order_matters: false

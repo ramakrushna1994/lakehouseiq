@@ -1,0 +1,45 @@
+name: mv_returns
+schema: sales
+description: >-
+  Return counts and refund amounts by month, return reason, return status, product
+  category, subcategory and product. For a return RATE (returns divided by units sold)
+  use the cross-fact view v_product_performance instead.
+spec:
+  version: 1.1
+  source: ${catalog}.sales.returns
+  joins:
+    - name: product
+      source: ${catalog}.sales.products
+      'on': source.product_id = product.product_id
+  dimensions:
+    - name: return_month
+      expr: date_trunc('MONTH', return_date)
+      comment: First day of the month the return was recorded
+    - name: return_year
+      expr: year(return_date)
+      comment: Calendar year of the return
+    - name: return_reason
+      expr: return_reason
+      comment: Why the item was returned
+    - name: return_status
+      expr: return_status
+      comment: Return workflow status (Pending, Approved, Completed)
+    - name: category
+      expr: product.category
+      comment: Category of the returned product
+    - name: subcategory
+      expr: product.subcategory
+      comment: Subcategory of the returned product
+    - name: product_name
+      expr: product.product_name
+      comment: Name of the returned product
+  measures:
+    - name: return_count
+      expr: COUNT(1)
+      comment: Number of returns
+    - name: total_refunds
+      expr: SUM(refund_amount)
+      comment: Total refund amount in USD
+    - name: avg_refund
+      expr: AVG(refund_amount)
+      comment: Average refund per return

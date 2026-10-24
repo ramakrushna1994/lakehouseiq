@@ -1,0 +1,59 @@
+name: mv_expenses
+schema: finance
+description: >-
+  Employee expense claims by month, year, department, cost center, category, vendor and approval
+  status, with approval rate and reimbursed amounts.
+spec:
+  version: 1.1
+  source: ${catalog}.finance.expenses
+  joins:
+    - name: department
+      source: ${catalog}.hr.departments
+      'on': source.dept_id = department.dept_id
+    - name: cost_center
+      source: ${catalog}.finance.cost_centers
+      'on': source.cc_id = cost_center.cc_id
+  dimensions:
+    - name: expense_month
+      expr: date_trunc('MONTH', expense_date)
+      comment: First day of the month of the expense
+    - name: expense_year
+      expr: year(expense_date)
+      comment: Calendar year of the expense
+    - name: dept_name
+      expr: department.dept_name
+      comment: Department of the employee who claimed the expense
+    - name: cc_name
+      expr: cost_center.cc_name
+      comment: Cost center name; null for departments without a cost center
+    - name: category
+      expr: category
+      comment: Expense category (Travel, Software, Training, Marketing, ...)
+    - name: vendor
+      expr: vendor
+      comment: Vendor paid
+    - name: approval_status
+      expr: approval_status
+      comment: Approved, Pending or Rejected
+  measures:
+    - name: expense_count
+      expr: COUNT(1)
+      comment: Number of expense claims
+    - name: total_amount
+      expr: SUM(amount)
+      comment: Total claimed amount in USD
+    - name: avg_amount
+      expr: AVG(amount)
+      comment: Average claim amount in USD
+    - name: reimbursed_amount
+      expr: SUM(CASE WHEN reimbursed THEN amount ELSE 0 END)
+      comment: Amount already reimbursed to employees
+    - name: approved_count
+      expr: COUNT(CASE WHEN approval_status = 'Approved' THEN 1 END)
+      comment: Claims with status Approved
+    - name: rejected_count
+      expr: COUNT(CASE WHEN approval_status = 'Rejected' THEN 1 END)
+      comment: Claims with status Rejected
+    - name: approval_rate_pct
+      expr: MEASURE(approved_count) * 100.0 / NULLIF(MEASURE(expense_count), 0)
+      comment: Approved claims as a percent of all claims (0-100 scale)

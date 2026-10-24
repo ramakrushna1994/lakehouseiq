@@ -1,0 +1,125 @@
+"""Eval harness tests using fakes: no warehouse, model or Genie access."""
+
+from types import SimpleNamespace
+
+import pandas as pd
+
+from eval import runner
+from lakehouseiq.pipeline import AnswerResult
+
+
+def _q(i="t-01", order=False):
+    return {"id": i, "question": "How many?", "reference_sql": "SELECT 1 AS n", "order_matters": order}
+
+
+def _run_query(sql, max_rows):
+    if "BAD" in sql:
+        return None, "boom"
+    return pd.DataFrame({"n": [3]}), None
+
+
+def _answer(df, verdict="GOOD", repaired=False, error=None):
+    def fn(question):
+        return AnswerResult(question=question, sql="SELECT 3 AS n", df=df, verdict=verdict, repaired=repaired,
+                            error=error, scores={"relevance": 9}, timings_ms={"total": 120})
+    return fn
+
+
+def test_questions_load_with_substitution():
+    qs = runner.load_questions(catalog="cat", as_of_date="2026-01-31")
+    assert len(qs) == 30
+    assert all("${" not in q["reference_sql"] for q in qs)
+    assert len({q["id"] for q in qs}) == 30
+
+
+def test_load_questions_rejects_bad_catalog():
+    import pytest
+
+    with pytest.raises(ValueError):
+        runner.load_questions(catalog="x; DROP", as_of_date="2026-01-31")
+
+
+def test_assistant_match_and_mismatch():
+    rows = runner.run_eval([_q()], answer_fn=_answer(pd.DataFrame({"count": [3]})), run_query=_run_query,
+                           run_id="r", sleep_s=0)
+    assert rows[0]["exec_match"] is True and rows[0]["judge_relevance"] == 9
+    rows = runner.run_eval([_q()], answer_fn=_answer(pd.DataFrame({"count": [4]})), run_query=_run_query,
+                           run_id="r", sleep_s=0)
+    assert rows[0]["exec_match"] is False and "mismatch" in rows[0]["error"]
+
+
+def test_pipeline_exception_is_recorded():
+    def boom(question):
+        raise RuntimeError("quota")
+
+    rows = runner.run_eval([_q()], answer_fn=boom, run_query=_run_query, run_id="r", sleep_s=0)
+    assert rows[0]["verdict"] == "ERROR" and "quota" in rows[0]["error"]
+
+
+def test_reference_failure_never_counts_as_match():
+    q = _q()
+    q["reference_sql"] = "BAD"
+    rows = runner.run_eval([q], answer_fn=_answer(pd.DataFrame({"n": [3]})), run_query=_run_query, run_id="r", sleep_s=0)
+    assert rows[0]["exec_match"] is False and "reference SQL failed" in rows[0]["error"]
+
+
+def test_resume_and_limit_and_callback():
+    seen = []
+    qs = [_q("a"), _q("b"), _q("c")]
+    rows = runner.run_eval(qs, answer_fn=_answer(pd.DataFrame({"n": [3]})), run_query=_run_query, run_id="r",
+                           done={("assistant", "a")}, limit=2, sleep_s=0, on_rows=seen.append)
+    assert [r["question_id"] for r in rows] == ["b"]
+    assert len(seen) == 1
+
+
+def test_genie_paths():
+    ok = lambda q: ("SELECT 3 AS n", None)  # noqa: E731
+    row = runner.evaluate_genie(_q(), pd.DataFrame({"n": [3]}), ask_fn=ok, run_query=_run_query, run_id="r")
+    assert row["exec_match"] is True
+    blocked = runner.evaluate_genie(_q(), None, ask_fn=lambda q: ("DROP TABLE x", None), run_query=_run_query, run_id="r")
+    assert blocked["verdict"] == "BLOCKED"
+    err = runner.evaluate_genie(_q(), None, ask_fn=lambda q: (None, "down"), run_query=_run_query, run_id="r")
+    assert err["verdict"] == "ERROR" and err["error"] == "down"
+
+
+def test_extract_genie_sql_defensive():
+    assert runner.extract_genie_sql(SimpleNamespace(attachments=None)) is None
+    msg = SimpleNamespace(attachments=[SimpleNamespace(query=None),
+                                       SimpleNamespace(query=SimpleNamespace(query=" SELECT 1 "))])
+    assert runner.extract_genie_sql(msg) == "SELECT 1"
+
+
+def test_ask_genie_never_raises():
+    class W:
+        genie = SimpleNamespace(start_conversation_and_wait=lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")))
+
+    sql, err = runner.ask_genie(W(), "space", "q")
+    assert sql is None and "genie call failed" in err
+
+
+def test_summarize():
+    base = {"verdict": "GOOD", "latency_ms": 100, "repaired": False}
+    rows = [
+        {**base, "system": "assistant", "exec_match": True},
+        {**base, "system": "assistant", "exec_match": False, "verdict": "BLOCKED", "latency_ms": 300, "repaired": True},
+        {**base, "system": "genie", "exec_match": True},
+    ]
+    m = runner.summarize(rows)
+    assert m["exec_accuracy_assistant"] == 0.5 and m["blocked_rate"] == 0.5 and m["repair_rate"] == 0.5
+    assert m["p50_latency_ms"] == 200.0 and m["exec_accuracy_genie"] == 1.0
+
+
+def test_insert_uses_named_params_only():
+    calls = []
+    row = runner._row("r", "assistant", _q(), generated_sql="SELECT 'x'; --", error="it's bad")
+    runner.insert_rows(lambda sql, p: calls.append((sql, p)), "cat", [row])
+    sql, params = calls[0]
+    assert "it's" not in sql and "SELECT 'x'" not in sql
+    assert set(params) == set(runner.TABLE_COLUMNS) and params["error"] == "it's bad"
+
+
+def test_run_id_validation():
+    import pytest
+
+    with pytest.raises(ValueError):
+        runner._check_run_id("a' OR '1'='1")

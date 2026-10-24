@@ -1,0 +1,69 @@
+name: mv_order_lines
+schema: sales
+description: >-
+  Units sold, gross and net product revenue and line discounts by month, product category,
+  subcategory, product, supplier, customer region/segment and channel. Excludes cancelled
+  orders. Net revenue excludes tax and order-level promotions.
+spec:
+  version: 1.1
+  source: ${catalog}.sales.order_items
+  filter: orders.status <> 'Cancelled'
+  joins:
+    - name: orders
+      source: ${catalog}.sales.orders
+      'on': source.order_id = orders.order_id
+      joins:
+        - name: customer
+          source: ${catalog}.sales.customers
+          'on': orders.customer_id = customer.customer_id
+        - name: channel
+          source: ${catalog}.sales.sales_channels
+          'on': orders.channel_id = channel.channel_id
+    - name: product
+      source: ${catalog}.sales.products
+      'on': source.product_id = product.product_id
+  dimensions:
+    - name: order_month
+      expr: date_trunc('MONTH', orders.order_date)
+      comment: First day of the month the order was placed
+    - name: order_year
+      expr: year(orders.order_date)
+      comment: Calendar year of the order
+    - name: category
+      expr: product.category
+      comment: Product category (Electronics, Furniture, Stationery, Appliances)
+    - name: subcategory
+      expr: product.subcategory
+      comment: Product subcategory
+    - name: product_name
+      expr: product.product_name
+      comment: Product name
+    - name: supplier
+      expr: product.supplier
+      comment: Product supplier
+    - name: customer_region
+      expr: customer.region
+      comment: Sales region of the customer
+    - name: customer_segment
+      expr: customer.segment
+      comment: Customer segment (Enterprise, Mid-Market, SMB)
+    - name: channel_name
+      expr: channel.channel_name
+      comment: Sales channel name
+  measures:
+    - name: units_sold
+      expr: SUM(quantity)
+      comment: Total quantity sold
+    - name: gross_revenue
+      expr: SUM(quantity * source.unit_price)
+      comment: Quantity times list unit price before line discounts
+    - name: net_revenue
+      expr: SUM(line_total)
+      comment: Line revenue after line discounts, excluding tax
+      synonyms: [revenue, product revenue, sales]
+    - name: line_discounts
+      expr: SUM(quantity * source.unit_price - line_total)
+      comment: Dollar value of line-level discounts
+    - name: line_count
+      expr: COUNT(1)
+      comment: Number of order lines

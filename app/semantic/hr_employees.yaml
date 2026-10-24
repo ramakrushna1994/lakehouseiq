@@ -1,0 +1,51 @@
+name: mv_employees
+schema: hr
+description: >-
+  Headcount, salary averages and salary cost by department, location, job level, job title,
+  employment status and hire year.
+spec:
+  version: 1.1
+  source: ${catalog}.hr.employees
+  joins:
+    - name: department
+      source: ${catalog}.hr.departments
+      'on': source.dept_id = department.dept_id
+  dimensions:
+    - name: dept_name
+      expr: department.dept_name
+      comment: Department name
+    - name: location
+      expr: department.location
+      comment: Office location of the department
+    - name: job_level
+      expr: job_level
+      comment: Job level from L1 (junior) to L7 (executive)
+    - name: job_title
+      expr: job_title
+      comment: Job title
+    - name: status
+      expr: status
+      comment: Employment status (Active, Inactive)
+    - name: hire_year
+      expr: year(hire_date)
+      comment: Calendar year the employee was hired
+  measures:
+    - name: headcount
+      expr: COUNT(1)
+      comment: All employees including inactive
+    - name: active_headcount
+      expr: COUNT(CASE WHEN status = 'Active' THEN 1 END)
+      comment: Employees with status Active
+    - name: avg_salary
+      expr: AVG(CASE WHEN status = 'Active' THEN salary END)
+      comment: Average annual salary of active employees only
+      synonyms: [average pay, mean salary]
+    - name: total_salary_cost
+      expr: SUM(salary)
+      comment: Sum of annual salaries of all employees including inactive
+    - name: min_salary
+      expr: MIN(salary)
+      comment: Lowest annual salary
+    - name: max_salary
+      expr: MAX(salary)
+      comment: Highest annual salary

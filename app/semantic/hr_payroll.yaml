@@ -1,0 +1,50 @@
+name: mv_payroll
+schema: hr
+description: >-
+  Monthly payroll cost (base, bonus, overtime, deductions, net pay) by pay period, year,
+  department and pay status.
+spec:
+  version: 1.1
+  source: ${catalog}.hr.payroll
+  joins:
+    - name: department
+      source: ${catalog}.hr.departments
+      'on': source.dept_id = department.dept_id
+  dimensions:
+    - name: pay_period
+      expr: pay_period
+      comment: First day of the pay month
+    - name: pay_month
+      expr: date_trunc('MONTH', pay_period)
+      comment: First day of the pay month
+    - name: pay_year
+      expr: year(pay_period)
+      comment: Calendar year of the pay period
+    - name: dept_name
+      expr: department.dept_name
+      comment: Department of the employee
+    - name: pay_status
+      expr: pay_status
+      comment: Processed for closed months, Pending for the current month
+  measures:
+    - name: employees_paid
+      expr: COUNT(DISTINCT emp_id)
+      comment: Distinct employees with a payroll row
+    - name: total_base
+      expr: SUM(base_salary)
+      comment: Total monthly base salary paid
+    - name: total_bonuses
+      expr: SUM(bonus_amount)
+      comment: Total bonuses paid
+    - name: total_overtime
+      expr: SUM(overtime_pay)
+      comment: Total overtime pay
+    - name: total_deductions
+      expr: SUM(deductions)
+      comment: Total deductions withheld
+    - name: total_net_pay
+      expr: SUM(net_pay)
+      comment: Net pay = base + bonus + overtime - deductions
+    - name: avg_net_pay
+      expr: AVG(net_pay)
+      comment: Average net pay per payroll row
