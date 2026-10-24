@@ -71,6 +71,13 @@ def _examples(catalog: str, as_of_date: str) -> str:
             f"{c}.finance.mv_budget",
         ),
         (
+            # Contrast with the year-to-date example above: no period in the question means no time filter.
+            "Total budget and actual spend by account type?",
+            f"SELECT account_type, MEASURE(budget_amount) AS budget_amount, MEASURE(actual_amount) AS actual_amount "
+            f"FROM {c}.finance.mv_budget GROUP BY ALL ORDER BY actual_amount DESC",
+            f"{c}.finance.mv_budget",
+        ),
+        (
             "What is the total revenue by region for products in the Electronics category?",
             f"SELECT cu.region, SUM(oi.line_total) AS total_revenue FROM {c}.sales.order_items oi "
             f"JOIN {c}.sales.orders o ON oi.order_id = o.order_id "
@@ -121,6 +128,7 @@ Today = {as_of_date}. This is the latest date in the data; there is NO data afte
 - Relative dates are relative to the data, not the calendar. Use DATE'{as_of_date}' wherever you would use today's date.
 - NEVER use current_date(), current_timestamp() or now().
 - "this year" = year(DATE'{as_of_date}'); "last year" = year(DATE'{as_of_date}') - 1; "last month" = date_trunc('MONTH', add_months(DATE'{as_of_date}', -1)).
+- If the question names NO time period, add NO date or year filter: the answer covers all data.
 - "last N days" = col >= date_sub(DATE'{as_of_date}', N). "last N months" = col >= add_months(date_trunc('MONTH', DATE'{as_of_date}'), -(N-1)).
 
 ## Dialect Rules

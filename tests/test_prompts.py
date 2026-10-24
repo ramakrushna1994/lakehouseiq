@@ -51,14 +51,14 @@ def test_catalog_is_parameterised():
     assert "main.sales.mv_order_lines" not in p.replace("main.sales.mv_orders", "")
 
 
-def test_four_few_shot_examples_are_valid_json():
+def test_few_shot_examples_are_valid_json():
     p = gen()
     answers = re.findall(r"^Answer: (\{.*\})$", p, re.MULTILINE)
-    assert len(answers) == 4
+    assert len(answers) == 5
     parsed = [json.loads(a) for a in answers]
     views = [x["view"] for x in parsed]
     assert views.count(None) == 1
-    assert sum(1 for x in parsed if "MEASURE(" in x["sql"]) == 2
+    assert sum(1 for x in parsed if "MEASURE(" in x["sql"]) == 3
     assert any("v_product_performance" in (v or "") for v in views)
     assert all("current_date" not in x["sql"] for x in parsed)
 
@@ -115,3 +115,11 @@ def test_generation_prompt_forbids_unrequested_time_filters():
     from lakehouseiq import prompts
 
     assert "add a time-period filter ONLY when the question names a period" in inspect.getsource(prompts)
+
+
+def test_budget_examples_include_one_without_time_filter():
+    from lakehouseiq.prompts import _examples
+
+    shots = [blk for blk in _examples("cat", "2026-06-30").split("\n\n") if "mv_budget" in blk]
+    assert len(shots) >= 2
+    assert any("budget_year" not in blk for blk in shots), "need a budget example with no period filter"
